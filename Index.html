@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-List de Entrega — Elevador de Canecas</title>
+<style>
+  :root{
+    --green: #1e9650;
+    --green-dark: #136b39;
+    --paper: #faf9f4;
+    --card: #ffffff;
+    --ink: #1f2421;
+    --muted: #6b716a;
+    --line: #d8dbd2;
+    --ok: #1e9650;
+    --nc: #c0392b;
+    --na: #8a8f86;
+    --radius: 10px;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+    --sans: -apple-system, 'Segoe UI', Roboto, system-ui, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:var(--sans); background:var(--paper); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:920px; margin:0 auto; padding:22px 18px 80px;}
+  .topbar{
+    display:flex; align-items:center; gap:14px; padding:14px 18px; background:var(--green-dark);
+    color:#fff; border-radius:var(--radius); margin-bottom:18px;
+  }
+  .topbar .mark{font-weight:800; letter-spacing:.5px; font-size:15px;}
+  .topbar .mark span{color:#bfe8cf;}
+  .topbar .title{font-size:14px; opacity:.92;}
+  .topbar .sub{font-size:11.5px; opacity:.7;}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px; margin-bottom:16px;
+  }
+  .card h2{
+    font-size:12.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--green-dark);
+    margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  .card .hint{font-size:11.5px; color:var(--muted); margin:-6px 0 14px; font-style:italic;}
+  .grid{display:grid; gap:12px;}
+  .grid.id-fields{grid-template-columns:repeat(4,1fr);}
+  .grid.lead-fields{grid-template-columns:repeat(2,1fr); margin-top:12px;}
+  @media (max-width:700px){
+    .grid.id-fields{grid-template-columns:repeat(2,1fr);}
+    .grid.lead-fields{grid-template-columns:1fr;}
+  }
+  label.field{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);}
+  label.field span.lbl{font-weight:600; color:var(--ink); font-size:11.5px;}
+  input[type=text], input[type=date], textarea, select.plain{
+    font-family:var(--sans); font-size:13.5px; padding:8px 9px; border:1px solid var(--line);
+    border-radius:7px; background:#fff; color:var(--ink); width:100%;
+  }
+  input[type=text]:focus, input[type=date]:focus, textarea:focus, select:focus{
+    outline:2px solid var(--green); outline-offset:1px; border-color:var(--green);
+  }
+  .id-fields input{font-family:var(--mono); letter-spacing:.3px;}
+  .checklist-cols{display:grid; grid-template-columns:1fr 1fr; gap:0 22px;}
+  @media (max-width:700px){.checklist-cols{grid-template-columns:1fr;}}
+  .group-title{
+    font-size:11px; font-weight:700; color:var(--green-dark); text-transform:uppercase;
+    letter-spacing:.4px; margin:14px 0 6px; padding-top:8px; border-top:1px dashed var(--line);
+  }
+  .group-title:first-child{margin-top:0; border-top:none; padding-top:0;}
+  .item-row{display:flex; align-items:center; gap:9px; padding:4px 0;}
+  select.status{
+    width:58px; flex:0 0 58px; font-size:11.5px; font-weight:700; text-align:center;
+    padding:5px 2px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--muted);
+    appearance:none; -webkit-appearance:none; text-align-last:center; cursor:pointer;
+  }
+  select.status.v-OK{background:#e7f6ec; color:var(--ok); border-color:var(--ok);}
+  select.status.v-NC{background:#fbe9e7; color:var(--nc); border-color:var(--nc);}
+  select.status.v-NA{background:#eef0ec; color:var(--na); border-color:var(--na);}
+  .item-row .lbl{font-size:12.6px; line-height:1.3;}
+  .signrow{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px;}
+  @media (max-width:700px){.signrow{grid-template-columns:1fr;}}
+  .sign-note{font-size:10.5px; color:var(--muted); margin-top:3px;}
+  .toggle-pair{display:flex; gap:10px; margin-top:6px;}
+  .toggle-pair label{
+    display:flex; align-items:center; gap:7px; font-size:13px; padding:8px 14px;
+    border:1px solid var(--line); border-radius:7px; cursor:pointer; background:#fff;
+  }
+  .toggle-pair input{accent-color:var(--green);}
+  textarea{min-height:90px; resize:vertical; font-size:13px;}
+  .actions{
+    position:sticky; bottom:0; display:flex; gap:10px; padding:14px 0 6px; background:linear-gradient(to top, var(--paper) 70%, transparent);
+  }
+  button{
+    font-family:var(--sans); font-size:14px; font-weight:700; padding:12px 18px; border-radius:8px;
+    border:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+  }
+  button#btnPdf{background:var(--green); color:#fff; flex:1;}
+  button#btnPdf:hover{background:var(--green-dark);}
+  button#btnReset{background:transparent; color:var(--muted); border:1px solid var(--line);}
+  button#btnReset:hover{background:#f1f0ea;}
+  button:disabled{opacity:.6; cursor:wait;}
+  .status-msg{font-size:12px; color:var(--green-dark); margin-top:8px; min-height:16px;}
+  .footnote-text{font-size:11px; color:var(--muted); line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="mark">GRUPO <span>SR</span></div>
+    <div>
+      <div class="title">Check-List de Entrega — Elevador de Canecas</div>
+      <div class="sub">Preencha em campo e gere o PDF para impressão / assinatura</div>
+    </div>
+  </div>
+
+  <form id="checklistForm">
+
+    <div class="card">
+      <h2>Identificação</h2>
+      <div class="grid id-fields">
+        <label class="field"><span class="lbl">TAG</span><input type="text" id="tag"></label>
+        <label class="field"><span class="lbl">Código</span><input type="text" id="codigo"></label>
+        <label class="field"><span class="lbl">Máscara</span><input type="text" id="mascara"></label>
+        <label class="field"><span class="lbl">Modelo</span><input type="text" id="modelo"></label>
+      </div>
+      <div class="grid lead-fields">
+        <label class="field"><span class="lbl">Pedido</span><input type="text" id="pedido"></label>
+        <label class="field"><span class="lbl">Cliente</span><input type="text" id="cliente"></label>
+        <label class="field"><span class="lbl">Local</span><input type="text" id="local"></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Conferência do processo de montagem</h2>
+      <div class="hint">Preencher cada item com OK, NC (não conforme) ou NA (não aplicável)</div>
+      <div class="checklist-cols">
+        <div id="colLeft"></div>
+        <div id="colRight"></div>
+      </div>
+
+      <div class="signrow">
+        <label class="field"><span class="lbl">Teste a vazio — data</span><input type="date" id="vazioData"></label>
+        <label class="field"><span class="lbl">Nome do supervisor</span><input type="text" id="supervisorNome"></label>
+      </div>
+      <div class="sign-note">O supervisor de obra atesta que as informações estão corretas e o equipamento foi testado. A assinatura é feita à mão após a impressão do PDF.</div>
+    </div>
+
+    <div class="card">
+      <h2>Conferência do desempenho do equipamento</h2>
+      <label class="field"><span class="lbl">A capacidade do equipamento está de acordo com o projeto?</span></label>
+      <div class="toggle-pair">
+        <label><input type="radio" name="capacidade" value="Sim"> Sim</label>
+        <label><input type="radio" name="capacidade" value="Não"> Não</label>
+      </div>
+      <div class="signrow">
+        <label class="field"><span class="lbl">Teste com produto — data</span><input type="date" id="produtoData"></label>
+        <label class="field"><span class="lbl">Nome do cliente</span><input type="text" id="clienteNome"></label>
+      </div>
+      <div class="sign-note">O cliente declara que o elevador foi testado e não apresentou problema de desempenho. Assinatura à mão após impressão.</div>
+    </div>
+
+    <div class="card">
+      <h2>Observações / Parecer técnico</h2>
+      <textarea id="observacoes" placeholder="Escreva aqui observações ou deixe em branco para preencher à mão após a impressão"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Encerramento</h2>
+      <div class="grid id-fields" style="grid-template-columns:repeat(2,1fr);">
+        <label class="field"><span class="lbl">Local</span><input type="text" id="footerLocal"></label>
+        <label class="field"><span class="lbl">Data</span><input type="date" id="footerData"></label>
+      </div>
+      <div class="grid id-fields" style="grid-template-columns:repeat(2,1fr); margin-top:12px;">
+        <label class="field"><span class="lbl">SR Engenharia</span><input type="text" id="srEngenharia"></label>
+        <label class="field"><span class="lbl">Gestor de Montagem</span><input type="text" id="gestorMontagem"></label>
+      </div>
+      <p class="footnote-text" style="margin-top:14px;">
+        1 - Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.<br>
+        2 - O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.<br>
+        3 - A infiltração de água no equipamento somente será corrigida no período de garantia.<br>
+        *Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.
+      </p>
+    </div>
+
+  </form>
+
+  <div class="actions">
+    <button id="btnPdf" type="button">Gerar PDF</button>
+    <button id="btnReset" type="button">Limpar formulário</button>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+const leftItems = [
+  {group:'Conjunto Pé', label:'União da correia'},
+  {group:'Conjunto Pé', label:'Esticamento da correia'},
+  {group:'Conjunto Pé', label:'Fixação do pé (chumbadores)'},
+  {group:'Conjunto Pé', label:'Montagem das caçambas (fixação/distribuição)'},
+  {group:'Conjunto Pé e Cabeça', label:'Alinhamento dos módulos'},
+  {group:'Conjunto Pé e Cabeça', label:'Lubrificação e fixação dos mancais'},
+  {group:'Conjunto Pé e Cabeça', label:'Pontos de estaiamento'},
+  {group:'Conjunto Pé e Cabeça', label:'Adesivos de segurança'},
+  {group:'Conjunto Pé e Cabeça', label:'Montagem interligações (carga e descarga)'},
+  {group:'Conjunto Pé e Cabeça', label:'Acabamento e pintura'},
+  {group:'Conjunto Pé e Cabeça', label:'Ponto de captação de pó'},
+  {group:'Conjunto Cabeça', label:'Localização e altura conforme projeto'},
+  {group:'Conjunto Cabeça', label:'Prumo do elevador'},
+  {group:'Conjunto Cabeça', label:'Lado acionamento oposto ao alçapão'},
+  {group:'Conjunto Cabeça', label:'Fixação do acionamento (arruelas de pressão)'},
+];
+const rightItems = [
+  {group:'Conjunto Cabeça', label:'Nível de óleo e posição do motoredutor'},
+  {group:'Conjunto Cabeça', label:'Plataformas (alçapão / corrimão)'},
+  {group:'Conjunto Cabeça', label:'Respiro do motoredutor destravado'},
+  {group:'Conjunto Cabeça', label:'Montagem das escadas e guarda corpo'},
+  {group:'Conjunto Cabeça', label:'Tensão dos cabos de aço do estaiamento'},
+  {group:'Conjunto Cabeça', label:'Vedação (infiltração de água)'},
+  {group:'Conjunto Cabeça', label:'Potência (W) / Tensão (V) / Frequência do motor (RPM)'},
+  {group:'Teste a vazio', label:'Centralização da correia no rolo inferior'},
+  {group:'Teste a vazio', label:'Centralização da correia no rolo superior'},
+  {group:'Teste a vazio', label:'Curso do conjunto deslizante'},
+  {group:'Teste a vazio', label:'Caçambas não colidem com a estrutura dos módulos'},
+  {group:'Teste a vazio', label:'Regulagem da chapa de contenção do retorno'},
+  {group:'Teste a vazio', label:'Ajuste do freio contra-recuo (sentido)'},
+];
+
+function buildColumn(container, items, prefix){
+  let lastGroup = null;
+  items.forEach((item, i)=>{
+    if(item.group !== lastGroup){
+      const h = document.createElement('div');
+      h.className = 'group-title';
+      h.textContent = item.group;
+      container.appendChild(h);
+      lastGroup = item.group;
+    }
+    const row = document.createElement('div');
+    row.className = 'item-row';
+    const sel = document.createElement('select');
+    sel.className = 'status';
+    sel.id = prefix + '-' + i;
+    ['','OK','NC','NA'].forEach(v=>{
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = v === '' ? '—' : v;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', ()=>{
+      sel.classList.remove('v-OK','v-NC','v-NA');
+      if(sel.value) sel.classList.add('v-'+sel.value);
+    });
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.textContent = item.label;
+    row.appendChild(sel);
+    row.appendChild(lbl);
+    container.appendChild(row);
+  });
+}
+buildColumn(document.getElementById('colLeft'), leftItems, 'L');
+buildColumn(document.getElementById('colRight'), rightItems, 'R');
+
+function val(id){ return document.getElementById(id).value.trim(); }
+function fmtDate(iso){
+  if(!iso) return '____/____/______';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+function getRadio(name){
+  const els = document.getElementsByName(name);
+  for(const el of els){ if(el.checked) return el.value; }
+  return '';
+}
+
+document.getElementById('btnReset').addEventListener('click', ()=>{
+  if(confirm('Limpar todos os campos preenchidos?')){
+    document.getElementById('checklistForm').reset();
+    document.querySelectorAll('select.status').forEach(s=>s.classList.remove('v-OK','v-NC','v-NA'));
+    document.getElementById('statusMsg').textContent = '';
+  }
+});
+
+document.getElementById('btnPdf').addEventListener('click', gerarPDF);
+
+async function gerarPDF(){
+  const btn = document.getElementById('btnPdf');
+  const msg = document.getElementById('statusMsg');
+  btn.disabled = true; msg.textContent = 'Gerando PDF…';
+  try{
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
+
+    const pageW = 595.28, pageH = 841.89, margin = 42;
+    const green = rgb(0.118, 0.420, 0.224);
+    const ink = rgb(0.12, 0.14, 0.12);
+    const muted = rgb(0.42, 0.44, 0.40);
+    const lineColor = rgb(0.75, 0.77, 0.72);
+
+    let page = doc.addPage([pageW, pageH]);
+    let y = pageH - margin;
+
+    function newPage(){
+      page = doc.addPage([pageW, pageH]);
+      y = pageH - margin;
+    }
+    function ensure(h){
+      if(y - h < margin) newPage();
+    }
+    function txt(str, x, yy, opts={}){
+      page.drawText(str || '', { x, y: yy, size: opts.size || 9, font: opts.font || font, color: opts.color || ink });
+    }
+    function hline(x1, yy, x2, opts={}){
+      page.drawLine({ start:{x:x1,y:yy}, end:{x:x2,y:yy}, thickness: opts.thickness || 0.7, color: opts.color || lineColor });
+    }
+    function wrap(str, maxWidth, size, f){
+      const words = (str || '').split(/\s+/).filter(Boolean);
+      const lines = []; let cur = '';
+      for(const w of words){
+        const test = cur ? cur + ' ' + w : w;
+        if(f.widthOfTextAtSize(test, size) > maxWidth && cur){ lines.push(cur); cur = w; }
+        else cur = test;
+      }
+      if(cur) lines.push(cur);
+      return lines.length ? lines : [''];
+    }
+
+    // Header
+    txt('GRUPO SR', margin, y, { size:16, font:bold, color:green });
+    txt('Check-List de Entrega', margin + 110, y, { size:14, font:bold });
+    txt('Elevador de Canecas', margin + 110, y - 15, { size:10, font:italic, color:muted });
+    const rightColX = pageW - margin - 170;
+    txt('TAG: ' + val('tag'), rightColX, y, { size:9 });
+    txt('Código: ' + val('codigo'), rightColX, y - 13, { size:9 });
+    txt('Máscara: ' + val('mascara'), rightColX, y - 26, { size:9 });
+    y -= 42;
+    hline(margin, y, pageW - margin);
+    y -= 16;
+
+    txt('Pedido: ' + val('pedido'), margin, y, { size:9.5 });
+    txt('Cliente: ' + val('cliente'), margin + 150, y, { size:9.5 });
+    txt('Modelo: ' + val('modelo'), margin + 320, y, { size:9.5 });
+    y -= 14;
+    txt('Local: ' + val('local'), margin, y, { size:9.5 });
+    y -= 20;
+
+    // Section 1
+    txt('CONFERÊNCIA DO PROCESSO DE MONTAGEM', margin, y, { size:10.5, font:bold, color:green });
+    y -= 13;
+    txt('Preenchido com OK, NC (não conforme) ou NA (não aplicável)', margin, y, { size:8, font:italic, color:muted });
+    y -= 14;
+    hline(margin, y, pageW - margin);
+    y -= 12;
+
+    const colTop = y;
+    const colGap = 20;
+    const colWidth = (pageW - 2*margin - colGap) / 2;
+    const leftX = margin, rightX = margin + colWidth + colGap;
+    const rowH = 13.6;
+
+    function drawCol(items, x, prefix){
+      let yy = colTop;
+      let lastGroup = null;
+      items.forEach((item, i)=>{
+        if(item.group !== lastGroup){
+          yy -= 3;
+          txt(item.group.toUpperCase(), x, yy, { size:7.5, font:bold, color:green });
+          yy -= 11;
+          lastGroup = item.group;
+        }
+        const v = document.getElementById(prefix + '-' + i).value;
+        page.drawRectangle({ x, y: yy - 2.5, width: 22, height: 10.5, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
+        txt(v, x + 4, yy, { size:7.3, font:bold });
+        const labelLines = wrap(item.label, colWidth - 30, 7.8, font);
+        txt(labelLines[0], x + 28, yy, { size:7.8 });
+        yy -= rowH;
+        for(let li=1; li<labelLines.length; li++){
+          txt(labelLines[li], x + 28, yy, { size:7.8 });
+          yy -= rowH;
+        }
+      });
+      return yy;
+    }
+    const leftEnd = drawCol(leftItems, leftX, 'L');
+    const rightEnd = drawCol(rightItems, rightX, 'R');
+    y = Math.min(leftEnd, rightEnd) - 8;
+
+    ensure(60);
+    txt('Teste a vazio: ' + fmtDate(val('vazioData')), margin, y, { size:9.5 });
+    y -= 22;
+    txt(val('supervisorNome'), margin, y, { size:9.5 });
+    hline(margin, y - 4, margin + 220);
+    txt('Nome do supervisor', margin, y - 14, { size:7, color:muted });
+    hline(margin + 270, y - 4, margin + 270 + 200);
+    txt('Assinatura do supervisor', margin + 270, y - 14, { size:7, color:muted });
+    y -= 32;
+
+    // Section 2
+    ensure(90);
+    txt('CONFERÊNCIA DO DESEMPENHO DO EQUIPAMENTO', margin, y, { size:10.5, font:bold, color:green });
+    y -= 14;
+    hline(margin, y, pageW - margin);
+    y -= 14;
+    txt('A capacidade do equipamento está de acordo com o projeto (conferir modelo)?', margin, y, { size:9 });
+    y -= 16;
+    const cap = getRadio('capacidade');
+    page.drawRectangle({ x: margin, y: y - 2.5, width: 10, height: 10, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
+    if(cap === 'Sim') txt('X', margin + 1.7, y, { size:8, font:bold });
+    txt('Sim', margin + 16, y, { size:9 });
+    page.drawRectangle({ x: margin + 60, y: y - 2.5, width: 10, height: 10, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
+    if(cap === 'Não') txt('X', margin + 61.7, y, { size:8, font:bold });
+    txt('Não', margin + 76, y, { size:9 });
+    y -= 22;
+    txt('Teste com produto: ' + fmtDate(val('produtoData')), margin, y, { size:9.5 });
+    y -= 22;
+    txt(val('clienteNome'), margin, y, { size:9.5 });
+    hline(margin, y - 4, margin + 220);
+    txt('Nome do cliente', margin, y - 14, { size:7, color:muted });
+    hline(margin + 270, y - 4, margin + 270 + 200);
+    txt('Assinatura do cliente', margin + 270, y - 14, { size:7, color:muted });
+    y -= 32;
+
+    // Observações
+    ensure(50);
+    txt('OBSERVAÇÕES / PARECER TÉCNICO', margin, y, { size:10.5, font:bold, color:green });
+    y -= 14;
+    hline(margin, y, pageW - margin);
+    y -= 14;
+    const obsText = val('observacoes');
+    if(obsText){
+      const obsLines = wrap(obsText, pageW - 2*margin, 9.5, font);
+      obsLines.forEach(l=>{ ensure(14); txt(l, margin, y, { size:9.5 }); y -= 14; });
+    } else {
+      for(let i=0;i<4;i++){ ensure(16); hline(margin, y, pageW - margin); y -= 16; }
+    }
+    y -= 6;
+
+    // Footer notes
+    ensure(70);
+    const notes = [
+      '1 - Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.',
+      '2 - O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.',
+      '3 - A infiltração de água no equipamento somente será corrigida no período de garantia.',
+      '*Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.'
+    ];
+    notes.forEach(n=>{
+      const nl = wrap(n, pageW - 2*margin, 7.3, italic);
+      nl.forEach(l=>{ ensure(11); txt(l, margin, y, { size:7.3, font:italic, color:muted }); y -= 10; });
+    });
+    y -= 14;
+
+    // Closing signatures
+    ensure(50);
+    hline(margin, y, pageW - margin);
+    y -= 16;
+    txt(val('footerLocal'), margin, y, { size:9 });
+    hline(margin, y - 4, margin + 110);
+    txt('Local', margin, y - 14, { size:7, color:muted });
+
+    txt(fmtDate(val('footerData')), margin + 130, y, { size:9 });
+    hline(margin + 130, y - 4, margin + 220);
+    txt('Data', margin + 130, y - 14, { size:7, color:muted });
+
+    txt(val('srEngenharia'), margin + 250, y, { size:9 });
+    hline(margin + 250, y - 4, margin + 380);
+    txt('SR Engenharia', margin + 250, y - 14, { size:7, color:muted });
+
+    txt(val('gestorMontagem'), margin + 400, y, { size:9 });
+    hline(margin + 400, y - 4, pageW - margin);
+    txt('Gestor de Montagem', margin + 400, y - 14, { size:7, color:muted });
+
+    const bytes = await doc.save();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const tagPart = val('tag') ? val('tag').replace(/[^a-zA-Z0-9_-]/g,'') + '_' : '';
+    a.href = url;
+    a.download = 'checklist_' + tagPart + 'elevador_canecas.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    msg.textContent = 'PDF gerado e baixado. Abra o arquivo para imprimir.';
+  } catch(err){
+    console.error(err);
+    msg.textContent = 'Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
