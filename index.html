@@ -5,197 +5,364 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Check-List de Entrega — Elevador de Canecas</title>
 <style>
-  :root{
-    --green: #1e9650;
-    --green-dark: #136b39;
-    --paper: #faf9f4;
-    --card: #ffffff;
-    --ink: #1f2421;
-    --muted: #6b716a;
-    --line: #d8dbd2;
-    --ok: #1e9650;
-    --nc: #c0392b;
-    --na: #8a8f86;
-    --radius: 10px;
-    --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
-    --sans: -apple-system, 'Segoe UI', Roboto, system-ui, Arial, sans-serif;
+  :root {
+    --green:      #1a7a40;
+    --green-dark: #0f5229;
+    --green-mid:  #1f9650;
+    --green-tint: #eaf5ee;
+    --paper:      #f6f5f0;
+    --card:       #ffffff;
+    --ink:        #1a1c19;
+    --ink-2:      #3d4039;
+    --muted:      #757870;
+    --line:       #d6d9d0;
+    --line-2:     #e8ebe2;
+    --ok:         #1a7a40;
+    --nc:         #b83030;
+    --na:         #7a7d76;
+    --radius:     8px;
+    --radius-lg:  14px;
+    --mono:       ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    --sans:       -apple-system, 'Segoe UI', Roboto, system-ui, Arial, sans-serif;
   }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; font-family:var(--sans); background:var(--paper); color:var(--ink);
-    -webkit-font-smoothing:antialiased;
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.5;
   }
-  .app{max-width:920px; margin:0 auto; padding:22px 18px 80px;}
-  .topbar{
-    display:flex; align-items:center; gap:14px; padding:14px 18px; background:var(--green-dark);
-    color:#fff; border-radius:var(--radius); margin-bottom:18px;
+
+  .app { max-width: 960px; margin: 0 auto; padding: 28px 20px 100px; }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 24px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid var(--green-dark);
   }
-  .topbar .mark{font-weight:800; letter-spacing:.5px; font-size:15px;}
-  .topbar .mark span{color:#bfe8cf;}
-  .topbar .title{font-size:14px; opacity:.92;}
-  .topbar .sub{font-size:11.5px; opacity:.7;}
-  .card{
-    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-    padding:18px; margin-bottom:16px;
+  .header-stripe {
+    background: var(--green-dark);
+    width: 8px; flex: 0 0 8px; align-self: stretch;
   }
-  .card h2{
-    font-size:12.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--green-dark);
-    margin:0 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  .header-body {
+    background: var(--green-dark);
+    flex: 1; padding: 18px 22px;
+    display: flex; align-items: center; gap: 18px;
   }
-  .card .hint{font-size:11.5px; color:var(--muted); margin:-6px 0 14px; font-style:italic;}
-  .grid{display:grid; gap:12px;}
-  .grid.id-fields{grid-template-columns:repeat(4,1fr);}
-  .grid.lead-fields{grid-template-columns:repeat(2,1fr); margin-top:12px;}
-  @media (max-width:700px){
-    .grid.id-fields{grid-template-columns:repeat(2,1fr);}
-    .grid.lead-fields{grid-template-columns:1fr;}
+  .header-logo {
+    font-weight: 800; font-size: 22px; color: #fff;
+    letter-spacing: -0.5px; line-height: 1;
   }
-  label.field{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted);}
-  label.field span.lbl{font-weight:600; color:var(--ink); font-size:11.5px;}
-  input[type=text], input[type=date], textarea, select.plain{
-    font-family:var(--sans); font-size:13.5px; padding:8px 9px; border:1px solid var(--line);
-    border-radius:7px; background:#fff; color:var(--ink); width:100%;
+  .header-logo em { color: #7fdbaa; font-style: normal; }
+  .header-divider { width: 1px; height: 36px; background: rgba(255,255,255,.2); }
+  .header-text { color: #fff; }
+  .header-text h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .1px; }
+  .header-text p  { margin: 2px 0 0; font-size: 12px; color: rgba(255,255,255,.6); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 22px 24px;
+    margin-bottom: 16px;
   }
-  input[type=text]:focus, input[type=date]:focus, textarea:focus, select:focus{
-    outline:2px solid var(--green); outline-offset:1px; border-color:var(--green);
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 18px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line-2);
   }
-  .id-fields input{font-family:var(--mono); letter-spacing:.3px;}
-  .checklist-cols{display:grid; grid-template-columns:1fr 1fr; gap:0 22px;}
-  @media (max-width:700px){.checklist-cols{grid-template-columns:1fr;}}
-  .group-title{
-    font-size:11px; font-weight:700; color:var(--green-dark); text-transform:uppercase;
-    letter-spacing:.4px; margin:14px 0 6px; padding-top:8px; border-top:1px dashed var(--line);
+  .card-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--green-tint);
+    color: var(--green-dark);
+    font-weight: 700; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 26px;
   }
-  .group-title:first-child{margin-top:0; border-top:none; padding-top:0;}
-  .item-row{display:flex; align-items:center; gap:9px; padding:4px 0;}
-  select.status{
-    width:58px; flex:0 0 58px; font-size:11.5px; font-weight:700; text-align:center;
-    padding:5px 2px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--muted);
-    appearance:none; -webkit-appearance:none; text-align-last:center; cursor:pointer;
+  .card-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .8px;
+    color: var(--green-dark);
+    margin: 0;
   }
-  select.status.v-OK{background:#e7f6ec; color:var(--ok); border-color:var(--ok);}
-  select.status.v-NC{background:#fbe9e7; color:var(--nc); border-color:var(--nc);}
-  select.status.v-NA{background:#eef0ec; color:var(--na); border-color:var(--na);}
-  .item-row .lbl{font-size:12.6px; line-height:1.3;}
-  .signrow{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:14px;}
-  @media (max-width:700px){.signrow{grid-template-columns:1fr;}}
-  .sign-note{font-size:10.5px; color:var(--muted); margin-top:3px;}
-  .toggle-pair{display:flex; gap:10px; margin-top:6px;}
-  .toggle-pair label{
-    display:flex; align-items:center; gap:7px; font-size:13px; padding:8px 14px;
-    border:1px solid var(--line); border-radius:7px; cursor:pointer; background:#fff;
+  .hint {
+    font-size: 11.5px; color: var(--muted); font-style: italic;
+    margin: -10px 0 16px;
   }
-  .toggle-pair input{accent-color:var(--green);}
-  textarea{min-height:90px; resize:vertical; font-size:13px;}
-  .actions{
-    position:sticky; bottom:0; display:flex; gap:10px; padding:14px 0 6px; background:linear-gradient(to top, var(--paper) 70%, transparent);
+
+  /* ── Field grid ── */
+  .fields { display: grid; gap: 12px; }
+  .fields-4 { grid-template-columns: repeat(4, 1fr); }
+  .fields-3 { grid-template-columns: repeat(3, 1fr); }
+  .fields-2 { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 680px) {
+    .fields-4 { grid-template-columns: repeat(2, 1fr); }
+    .fields-3 { grid-template-columns: repeat(2, 1fr); }
+    .fields-2 { grid-template-columns: 1fr; }
   }
-  button{
-    font-family:var(--sans); font-size:14px; font-weight:700; padding:12px 18px; border-radius:8px;
-    border:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field-label {
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted);
   }
-  button#btnPdf{background:var(--green); color:#fff; flex:1;}
-  button#btnPdf:hover{background:var(--green-dark);}
-  button#btnReset{background:transparent; color:var(--muted); border:1px solid var(--line);}
-  button#btnReset:hover{background:#f1f0ea;}
-  button:disabled{opacity:.6; cursor:wait;}
-  .status-msg{font-size:12px; color:var(--green-dark); margin-top:8px; min-height:16px;}
-  .footnote-text{font-size:11px; color:var(--muted); line-height:1.5;}
+  input[type=text], input[type=date], textarea, .plain-sel {
+    font-family: var(--sans); font-size: 13.5px;
+    padding: 8px 11px; border: 1px solid var(--line);
+    border-radius: var(--radius); background: #fff; color: var(--ink);
+    width: 100%; transition: border-color .15s;
+  }
+  input[type=text]:focus, input[type=date]:focus, textarea:focus, .plain-sel:focus {
+    outline: none; border-color: var(--green-mid);
+    box-shadow: 0 0 0 3px rgba(26,122,64,.12);
+  }
+  .mono-input { font-family: var(--mono); letter-spacing: .4px; }
+  textarea { min-height: 90px; resize: vertical; font-size: 13px; }
+
+  /* ── Checklist columns ── */
+  .checklist-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+  @media (max-width: 640px) { .checklist-cols { grid-template-columns: 1fr; } }
+  .group-label {
+    font-size: 10px; font-weight: 700; color: var(--green-dark);
+    text-transform: uppercase; letter-spacing: .6px;
+    padding: 10px 0 4px; margin-top: 4px;
+    border-top: 1px dashed var(--line);
+  }
+  .group-label:first-child { border-top: none; padding-top: 0; }
+  .item-row { display: flex; align-items: center; gap: 9px; padding: 3.5px 0; }
+  select.status-sel {
+    width: 56px; flex: 0 0 56px; font-size: 11px; font-weight: 700;
+    text-align: center; text-align-last: center;
+    padding: 4px 2px; border: 1px solid var(--line);
+    border-radius: 6px; background: #fff; color: var(--muted);
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  select.status-sel.v-OK { background: #e3f5ea; color: var(--ok); border-color: #7ec99a; }
+  select.status-sel.v-NC { background: #fde8e8; color: var(--nc); border-color: #e89898; }
+  select.status-sel.v-NA { background: #f0f0ee; color: var(--na); border-color: #bfc0bc; }
+  .item-label { font-size: 12.5px; line-height: 1.35; color: var(--ink-2); }
+
+  /* ── Sign row ── */
+  .sign-row { margin-top: 18px; }
+  .sign-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .sign-fields { grid-template-columns: 1fr; } }
+  .sign-note {
+    font-size: 11px; color: var(--muted); font-style: italic;
+    margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid var(--line-2);
+    line-height: 1.5;
+  }
+
+  /* ── Radio / toggle ── */
+  .radio-group { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+  .radio-pill {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; padding: 8px 16px;
+    border: 1px solid var(--line); border-radius: 50px;
+    cursor: pointer; background: #fff; color: var(--ink-2);
+    transition: border-color .15s, background .15s;
+    user-select: none;
+  }
+  .radio-pill input { accent-color: var(--green); margin: 0; }
+  .radio-pill:has(input:checked) {
+    border-color: var(--green-mid); background: var(--green-tint); color: var(--green-dark);
+  }
+
+  /* ── Footer notes ── */
+  .footnotes {
+    font-size: 11px; color: var(--muted); line-height: 1.65;
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px dashed var(--line);
+  }
+  .footnotes p { margin: 0 0 4px; }
+
+  /* ── Action bar ── */
+  .action-bar {
+    position: sticky; bottom: 0;
+    display: flex; gap: 10px; align-items: center;
+    padding: 14px 0 8px;
+    background: linear-gradient(to top, var(--paper) 72%, transparent);
+  }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 700;
+    padding: 11px 20px; border-radius: var(--radius);
+    border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: background .15s, opacity .15s;
+  }
+  #btnPdf {
+    background: var(--green); color: #fff; flex: 1;
+    box-shadow: 0 1px 3px rgba(15,82,41,.25);
+  }
+  #btnPdf:hover { background: var(--green-dark); }
+  #btnPdf:disabled { opacity: .6; cursor: wait; }
+  #btnReset {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--line); flex: 0 0 auto;
+  }
+  #btnReset:hover { background: var(--line-2); }
+  .status-msg {
+    font-size: 12px; color: var(--green-dark);
+    min-height: 18px; padding: 0 2px;
+  }
+
+  /* ── Progress bar ── */
+  .progress-wrap { position: relative; margin-bottom: 20px; }
+  .progress-bar {
+    height: 4px; background: var(--line-2); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0; background: var(--green-mid);
+    border-radius: 2px; transition: width .3s ease;
+  }
+  .progress-label {
+    font-size: 11px; color: var(--muted); margin-top: 5px;
+    display: flex; justify-content: space-between;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700;
+    padding: 2px 8px; border-radius: 50px;
+  }
+  .badge-ok  { background: #e3f5ea; color: var(--ok); }
+  .badge-nc  { background: #fde8e8; color: var(--nc); }
+  .badge-na  { background: #f0f0ee; color: var(--na); }
 </style>
 </head>
 <body>
 <div class="app">
 
-  <div class="topbar">
-
-    .logo{
-    height:60px;
-    width:auto;
-    object-fit:contain;
-    flex-shrink:0;
-}
-  <img src="sr-sem-fundo (2).png" class="logo" alt="Grupo SR">
-
-  <div>
-    <div class="title">Check-List de Entrega — Elevador de Canecas</div>
-    <div class="sub">Preencha em campo e gere o PDF para impressão / assinatura</div>
+  <div class="header">
+    <div class="header-stripe"></div>
+    <div class="header-body">
+      <div class="header-logo">GRUPO <em>SR</em></div>
+      <div class="header-divider"></div>
+      <div class="header-text">
+        <h1>Check-List de Entrega — Elevador de Canecas</h1>
+        <p>Preencha em campo e gere o PDF para impressão e assinatura</p>
+      </div>
+    </div>
   </div>
-</div>  
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label">
+      <span id="progressText">0 de 28 itens preenchidos</span>
+      <span>
+        <span class="badge badge-ok" id="cntOK">OK: 0</span>&ensp;
+        <span class="badge badge-nc" id="cntNC">NC: 0</span>&ensp;
+        <span class="badge badge-na" id="cntNA">NA: 0</span>
+      </span>
+    </div>
+  </div>
 
   <form id="checklistForm">
 
+    <!-- 1. Identificação -->
     <div class="card">
-      <h2>Identificação</h2>
-      <div class="grid id-fields">
-        <label class="field"><span class="lbl">TAG</span><input type="text" id="tag"></label>
-        <label class="field"><span class="lbl">Código</span><input type="text" id="codigo"></label>
-        <label class="field"><span class="lbl">Máscara</span><input type="text" id="mascara"></label>
-        <label class="field"><span class="lbl">Modelo</span><input type="text" id="modelo"></label>
+      <div class="card-header">
+        <div class="card-num">1</div>
+        <p class="card-title">Identificação</p>
       </div>
-      <div class="grid lead-fields">
-        <label class="field"><span class="lbl">Pedido</span><input type="text" id="pedido"></label>
-        <label class="field"><span class="lbl">Cliente</span><input type="text" id="cliente"></label>
-        <label class="field"><span class="lbl">Local</span><input type="text" id="local"></label>
+      <div class="fields fields-4">
+        <div class="field"><span class="field-label">TAG</span><input type="text" id="tag" class="mono-input" placeholder="EC-001"></div>
+        <div class="field"><span class="field-label">Código</span><input type="text" id="codigo" class="mono-input" placeholder="SR-2024-XXX"></div>
+        <div class="field"><span class="field-label">Máscara</span><input type="text" id="mascara" class="mono-input"></div>
+        <div class="field"><span class="field-label">Modelo</span><input type="text" id="modelo"></div>
+      </div>
+      <div class="fields fields-3" style="margin-top:12px;">
+        <div class="field"><span class="field-label">Pedido</span><input type="text" id="pedido"></div>
+        <div class="field"><span class="field-label">Cliente</span><input type="text" id="cliente"></div>
+        <div class="field"><span class="field-label">Local / Planta</span><input type="text" id="local"></div>
       </div>
     </div>
 
+    <!-- 2. Montagem -->
     <div class="card">
-      <h2>Conferência do processo de montagem</h2>
-      <div class="hint">Preencher cada item com OK, NC (não conforme) ou NA (não aplicável)</div>
+      <div class="card-header">
+        <div class="card-num">2</div>
+        <p class="card-title">Conferência do processo de montagem</p>
+      </div>
+      <p class="hint">Marque cada item com OK, NC (não conforme) ou NA (não aplicável)</p>
+
       <div class="checklist-cols">
         <div id="colLeft"></div>
         <div id="colRight"></div>
       </div>
 
-      <div class="signrow">
-        <label class="field"><span class="lbl">Teste a vazio — data</span><input type="date" id="vazioData"></label>
-        <label class="field"><span class="lbl">Nome do supervisor</span><input type="text" id="supervisorNome"></label>
+      <div class="sign-row">
+        <div class="sign-fields">
+          <div class="field"><span class="field-label">Teste a vazio — data</span><input type="date" id="vazioData"></div>
+          <div class="field"><span class="field-label">Nome do supervisor</span><input type="text" id="supervisorNome"></div>
+        </div>
+        <p class="sign-note">O supervisor de obra atesta que as informações estão corretas e o equipamento foi testado. A assinatura é feita à mão após a impressão do PDF.</p>
       </div>
-      <div class="sign-note">O supervisor de obra atesta que as informações estão corretas e o equipamento foi testado. A assinatura é feita à mão após a impressão do PDF.</div>
     </div>
 
+    <!-- 3. Desempenho -->
     <div class="card">
-      <h2>Conferência do desempenho do equipamento</h2>
-      <label class="field"><span class="lbl">A capacidade do equipamento está de acordo com o projeto?</span></label>
-      <div class="toggle-pair">
-        <label><input type="radio" name="capacidade" value="Sim"> Sim</label>
-        <label><input type="radio" name="capacidade" value="Não"> Não</label>
+      <div class="card-header">
+        <div class="card-num">3</div>
+        <p class="card-title">Conferência do desempenho do equipamento</p>
       </div>
-      <div class="signrow">
-        <label class="field"><span class="lbl">Teste com produto — data</span><input type="date" id="produtoData"></label>
-        <label class="field"><span class="lbl">Nome do cliente</span><input type="text" id="clienteNome"></label>
+      <div class="field">
+        <span class="field-label">A capacidade do equipamento está de acordo com o projeto?</span>
+        <div class="radio-group">
+          <label class="radio-pill"><input type="radio" name="capacidade" value="Sim"> Sim</label>
+          <label class="radio-pill"><input type="radio" name="capacidade" value="Não"> Não</label>
+        </div>
       </div>
-      <div class="sign-note">O cliente declara que o elevador foi testado e não apresentou problema de desempenho. Assinatura à mão após impressão.</div>
+      <div class="sign-fields" style="margin-top:14px;">
+        <div class="field"><span class="field-label">Teste com produto — data</span><input type="date" id="produtoData"></div>
+        <div class="field"><span class="field-label">Nome do cliente</span><input type="text" id="clienteNome"></div>
+      </div>
+      <p class="sign-note">O cliente declara que o elevador foi testado e não apresentou problema de desempenho. Assinatura à mão após impressão.</p>
     </div>
 
+    <!-- 4. Observações -->
     <div class="card">
-      <h2>Observações / Parecer técnico</h2>
-      <textarea id="observacoes" placeholder="Escreva aqui observações ou deixe em branco para preencher à mão após a impressão"></textarea>
+      <div class="card-header">
+        <div class="card-num">4</div>
+        <p class="card-title">Observações / Parecer técnico</p>
+      </div>
+      <textarea id="observacoes" placeholder="Escreva observações ou deixe em branco para preencher à mão após a impressão"></textarea>
     </div>
 
+    <!-- 5. Encerramento -->
     <div class="card">
-      <h2>Encerramento</h2>
-      <div class="grid id-fields" style="grid-template-columns:repeat(2,1fr);">
-        <label class="field"><span class="lbl">Local</span><input type="text" id="footerLocal"></label>
-        <label class="field"><span class="lbl">Data</span><input type="date" id="footerData"></label>
+      <div class="card-header">
+        <div class="card-num">5</div>
+        <p class="card-title">Encerramento</p>
       </div>
-      <div class="grid id-fields" style="grid-template-columns:repeat(2,1fr); margin-top:12px;">
-        <label class="field"><span class="lbl">SR Engenharia</span><input type="text" id="srEngenharia"></label>
-        <label class="field"><span class="lbl">Gestor de Montagem</span><input type="text" id="gestorMontagem"></label>
+      <div class="fields fields-2">
+        <div class="field"><span class="field-label">Local</span><input type="text" id="footerLocal"></div>
+        <div class="field"><span class="field-label">Data</span><input type="date" id="footerData"></div>
       </div>
-      <p class="footnote-text" style="margin-top:14px;">
-        1 - Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.<br>
-        2 - O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.<br>
-        3 - A infiltração de água no equipamento somente será corrigida no período de garantia.<br>
-        *Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.
-      </p>
+      <div class="fields fields-2" style="margin-top:12px;">
+        <div class="field"><span class="field-label">SR Engenharia</span><input type="text" id="srEngenharia"></div>
+        <div class="field"><span class="field-label">Gestor de Montagem</span><input type="text" id="gestorMontagem"></div>
+      </div>
+      <div class="footnotes">
+        <p>1 — Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.</p>
+        <p>2 — O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.</p>
+        <p>3 — A infiltração de água no equipamento somente será corrigida no período de garantia.</p>
+        <p>* Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.</p>
+      </div>
     </div>
 
   </form>
 
-  <div class="actions">
-    <button id="btnPdf" type="button">Gerar PDF</button>
-    <button id="btnReset" type="button">Limpar formulário</button>
+  <div class="action-bar">
+    <button id="btnPdf" type="button">⬇ Gerar PDF</button>
+    <button id="btnReset" type="button">Limpar</button>
   </div>
   <div class="status-msg" id="statusMsg"></div>
 
@@ -236,12 +403,12 @@ const rightItems = [
   {group:'Teste a vazio', label:'Ajuste do freio contra-recuo (sentido)'},
 ];
 
-function buildColumn(container, items, prefix){
+function buildColumn(container, items, prefix) {
   let lastGroup = null;
-  items.forEach((item, i)=>{
-    if(item.group !== lastGroup){
+  items.forEach((item, i) => {
+    if (item.group !== lastGroup) {
       const h = document.createElement('div');
-      h.className = 'group-title';
+      h.className = 'group-label';
       h.textContent = item.group;
       container.appendChild(h);
       lastGroup = item.group;
@@ -249,27 +416,46 @@ function buildColumn(container, items, prefix){
     const row = document.createElement('div');
     row.className = 'item-row';
     const sel = document.createElement('select');
-    sel.className = 'status';
+    sel.className = 'status-sel';
     sel.id = prefix + '-' + i;
-    ['','OK','NC','NA'].forEach(v=>{
+    [['','—'],['OK','OK'],['NC','NC'],['NA','NA']].forEach(([v,t]) => {
       const opt = document.createElement('option');
-      opt.value = v; opt.textContent = v === '' ? '—' : v;
+      opt.value = v; opt.textContent = t;
       sel.appendChild(opt);
     });
-    sel.addEventListener('change', ()=>{
+    sel.addEventListener('change', () => {
       sel.classList.remove('v-OK','v-NC','v-NA');
-      if(sel.value) sel.classList.add('v-'+sel.value);
+      if (sel.value) sel.classList.add('v-' + sel.value);
+      updateProgress();
     });
     const lbl = document.createElement('div');
-    lbl.className = 'lbl';
+    lbl.className = 'item-label';
     lbl.textContent = item.label;
-    row.appendChild(sel);
-    row.appendChild(lbl);
+    row.appendChild(sel); row.appendChild(lbl);
     container.appendChild(row);
   });
 }
 buildColumn(document.getElementById('colLeft'), leftItems, 'L');
 buildColumn(document.getElementById('colRight'), rightItems, 'R');
+
+const total = leftItems.length + rightItems.length;
+
+function updateProgress() {
+  let filled = 0, ok = 0, nc = 0, na = 0;
+  leftItems.forEach((_, i) => {
+    const v = document.getElementById('L-'+i).value;
+    if(v){ filled++; if(v==='OK') ok++; else if(v==='NC') nc++; else na++; }
+  });
+  rightItems.forEach((_, i) => {
+    const v = document.getElementById('R-'+i).value;
+    if(v){ filled++; if(v==='OK') ok++; else if(v==='NC') nc++; else na++; }
+  });
+  document.getElementById('progressFill').style.width = (filled/total*100) + '%';
+  document.getElementById('progressText').textContent = `${filled} de ${total} itens preenchidos`;
+  document.getElementById('cntOK').textContent = `OK: ${ok}`;
+  document.getElementById('cntNC').textContent = `NC: ${nc}`;
+  document.getElementById('cntNA').textContent = `NA: ${na}`;
+}
 
 function val(id){ return document.getElementById(id).value.trim(); }
 function fmtDate(iso){
@@ -278,16 +464,16 @@ function fmtDate(iso){
   return `${d}/${m}/${y}`;
 }
 function getRadio(name){
-  const els = document.getElementsByName(name);
-  for(const el of els){ if(el.checked) return el.value; }
+  for(const el of document.getElementsByName(name)) if(el.checked) return el.value;
   return '';
 }
 
-document.getElementById('btnReset').addEventListener('click', ()=>{
+document.getElementById('btnReset').addEventListener('click', () => {
   if(confirm('Limpar todos os campos preenchidos?')){
     document.getElementById('checklistForm').reset();
-    document.querySelectorAll('select.status').forEach(s=>s.classList.remove('v-OK','v-NC','v-NA'));
+    document.querySelectorAll('select.status-sel').forEach(s => s.classList.remove('v-OK','v-NC','v-NA'));
     document.getElementById('statusMsg').textContent = '';
+    updateProgress();
   }
 });
 
@@ -297,203 +483,166 @@ async function gerarPDF(){
   const btn = document.getElementById('btnPdf');
   const msg = document.getElementById('statusMsg');
   btn.disabled = true; msg.textContent = 'Gerando PDF…';
-  try{
+  try {
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
     const doc = await PDFDocument.create();
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
 
-    const pageW = 595.28, pageH = 841.89, margin = 42;
-    const green = rgb(0.118, 0.420, 0.224);
-    const ink = rgb(0.12, 0.14, 0.12);
-    const muted = rgb(0.42, 0.44, 0.40);
-    const lineColor = rgb(0.75, 0.77, 0.72);
+    const pageW = 595.28, pageH = 841.89, mg = 42;
+    const green = rgb(0.102, 0.322, 0.251);
+    const greenDark = rgb(0.059, 0.322, 0.161);
+    const ink = rgb(0.10, 0.11, 0.10);
+    const muted = rgb(0.46, 0.47, 0.44);
+    const lineC = rgb(0.84, 0.85, 0.82);
+    const white = rgb(1,1,1);
 
     let page = doc.addPage([pageW, pageH]);
-    let y = pageH - margin;
+    let y = pageH - mg;
 
-    function newPage(){
-      page = doc.addPage([pageW, pageH]);
-      y = pageH - margin;
-    }
-    function ensure(h){
-      if(y - h < margin) newPage();
-    }
-    function txt(str, x, yy, opts={}){
-      page.drawText(str || '', { x, y: yy, size: opts.size || 9, font: opts.font || font, color: opts.color || ink });
-    }
-    function hline(x1, yy, x2, opts={}){
-      page.drawLine({ start:{x:x1,y:yy}, end:{x:x2,y:yy}, thickness: opts.thickness || 0.7, color: opts.color || lineColor });
-    }
-    function wrap(str, maxWidth, size, f){
-      const words = (str || '').split(/\s+/).filter(Boolean);
-      const lines = []; let cur = '';
+    const newPage = () => { page = doc.addPage([pageW, pageH]); y = pageH - mg; };
+    const ensure = h => { if(y - h < mg) newPage(); };
+
+    const txt = (str, x, yy, opts={}) => {
+      page.drawText(String(str||''), { x, y:yy, size: opts.size||9, font: opts.font||font, color: opts.color||ink, maxWidth: opts.maxWidth });
+    };
+    const hline = (x1, yy, x2, opts={}) => {
+      page.drawLine({ start:{x:x1,y:yy}, end:{x:x2,y:yy}, thickness: opts.t||0.6, color: opts.color||lineC });
+    };
+    const rect = (x,yy,w,h,opts={}) => {
+      page.drawRectangle({ x, y:yy, width:w, height:h, borderWidth: opts.bw!==undefined?opts.bw:0.6, borderColor: opts.bc||lineC, color: opts.fill||white });
+    };
+    const wrap = (str, maxW, size, f) => {
+      const words = (str||'').split(/\s+/).filter(Boolean);
+      const lines=[]; let cur='';
       for(const w of words){
-        const test = cur ? cur + ' ' + w : w;
-        if(f.widthOfTextAtSize(test, size) > maxWidth && cur){ lines.push(cur); cur = w; }
-        else cur = test;
+        const test = cur ? cur+' '+w : w;
+        if(f.widthOfTextAtSize(test,size)>maxW && cur){ lines.push(cur); cur=w; } else cur=test;
       }
       if(cur) lines.push(cur);
       return lines.length ? lines : [''];
-    }
+    };
 
-    // Header
-    txt('GRUPO SR', margin, y, { size:16, font:bold, color:green });
-    txt('Check-List de Entrega', margin + 110, y, { size:14, font:bold });
-    txt('Elevador de Canecas', margin + 110, y - 15, { size:10, font:italic, color:muted });
-    const rightColX = pageW - margin - 170;
-    txt('TAG: ' + val('tag'), rightColX, y, { size:9 });
-    txt('Código: ' + val('codigo'), rightColX, y - 13, { size:9 });
-    txt('Máscara: ' + val('mascara'), rightColX, y - 26, { size:9 });
-    y -= 42;
-    hline(margin, y, pageW - margin);
-    y -= 16;
+    // ── Header block ──
+    rect(mg, y-36, pageW-2*mg, 44, {fill:rgb(0.059,0.322,0.161), bw:0});
+    txt('GRUPO SR', mg+12, y-12, {size:15, font:bold, color:white});
+    txt('Check-List de Entrega — Elevador de Canecas', mg+100, y-10, {size:11, font:bold, color:white});
+    txt('TAG: '+val('tag')+'   Código: '+val('codigo')+'   Máscara: '+val('mascara'), mg+100, y-22, {size:8.5, font, color:rgb(.8,.9,.85)});
+    y -= 52;
 
-    txt('Pedido: ' + val('pedido'), margin, y, { size:9.5 });
-    txt('Cliente: ' + val('cliente'), margin + 150, y, { size:9.5 });
-    txt('Modelo: ' + val('modelo'), margin + 320, y, { size:9.5 });
-    y -= 14;
-    txt('Local: ' + val('local'), margin, y, { size:9.5 });
-    y -= 20;
-
-    // Section 1
-    txt('CONFERÊNCIA DO PROCESSO DE MONTAGEM', margin, y, { size:10.5, font:bold, color:green });
-    y -= 13;
-    txt('Preenchido com OK, NC (não conforme) ou NA (não aplicável)', margin, y, { size:8, font:italic, color:muted });
-    y -= 14;
-    hline(margin, y, pageW - margin);
+    txt('Pedido: '+val('pedido'), mg, y, {size:9});
+    txt('Cliente: '+val('cliente'), mg+140, y, {size:9});
+    txt('Modelo: '+val('modelo'), mg+330, y, {size:9});
     y -= 12;
+    txt('Local: '+val('local'), mg, y, {size:9});
+    y -= 18;
+
+    // ── Section 1 ──
+    txt('CONFERÊNCIA DO PROCESSO DE MONTAGEM', mg, y, {size:10, font:bold, color:greenDark});
+    y -= 4; hline(mg,y,pageW-mg,{t:.5, color: rgb(.7,.8,.72)}); y -= 11;
+    txt('Marque cada item com OK, NC (não conforme) ou NA (não aplicável)', mg, y, {size:8, font:italic, color:muted});
+    y -= 13;
 
     const colTop = y;
-    const colGap = 20;
-    const colWidth = (pageW - 2*margin - colGap) / 2;
-    const leftX = margin, rightX = margin + colWidth + colGap;
-    const rowH = 13.6;
+    const colW = (pageW-2*mg-20)/2;
+    const lX = mg, rX = mg+colW+20;
+    const rowH = 13;
 
-    function drawCol(items, x, prefix){
+    const drawChecks = (items, x, prefix) => {
       let yy = colTop;
-      let lastGroup = null;
-      items.forEach((item, i)=>{
-        if(item.group !== lastGroup){
-          yy -= 3;
-          txt(item.group.toUpperCase(), x, yy, { size:7.5, font:bold, color:green });
-          yy -= 11;
-          lastGroup = item.group;
+      let lastG = null;
+      items.forEach((item,i) => {
+        if(item.group!==lastG){
+          yy -= 2;
+          txt(item.group.toUpperCase(), x, yy, {size:7, font:bold, color:greenDark});
+          yy -= 10; lastG=item.group;
         }
-        const v = document.getElementById(prefix + '-' + i).value;
-        page.drawRectangle({ x, y: yy - 2.5, width: 22, height: 10.5, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
-        txt(v, x + 4, yy, { size:7.3, font:bold });
-        const labelLines = wrap(item.label, colWidth - 30, 7.8, font);
-        txt(labelLines[0], x + 28, yy, { size:7.8 });
+        const v = document.getElementById(prefix+'-'+i).value;
+        const bColor = v==='OK'?rgb(.12,.48,.25):v==='NC'?rgb(.72,.19,.19):v==='NA'?rgb(.48,.49,.47):lineC;
+        const bFill = v==='OK'?rgb(.89,.97,.91):v==='NC'?rgb(.99,.91,.91):v==='NA'?rgb(.94,.94,.93):white;
+        rect(x, yy-2.5, 22, 10.5, {fill:bFill, bc:bColor, bw:.7});
+        txt(v, x+(v.length===2?4:4.5), yy, {size:7.2, font:bold, color:bColor});
+        const llines = wrap(item.label, colW-30, 7.8, font);
+        txt(llines[0], x+28, yy, {size:7.8});
         yy -= rowH;
-        for(let li=1; li<labelLines.length; li++){
-          txt(labelLines[li], x + 28, yy, { size:7.8 });
-          yy -= rowH;
-        }
+        for(let k=1;k<llines.length;k++){ txt(llines[k], x+28, yy, {size:7.8}); yy-=rowH; }
       });
       return yy;
-    }
-    const leftEnd = drawCol(leftItems, leftX, 'L');
-    const rightEnd = drawCol(rightItems, rightX, 'R');
-    y = Math.min(leftEnd, rightEnd) - 8;
+    };
+    const leftEnd = drawChecks(leftItems, lX, 'L');
+    const rightEnd = drawChecks(rightItems, rX, 'R');
+    y = Math.min(leftEnd, rightEnd) - 10;
 
     ensure(60);
-    txt('Teste a vazio: ' + fmtDate(val('vazioData')), margin, y, { size:9.5 });
-    y -= 22;
-    txt(val('supervisorNome'), margin, y, { size:9.5 });
-    hline(margin, y - 4, margin + 220);
-    txt('Nome do supervisor', margin, y - 14, { size:7, color:muted });
-    hline(margin + 270, y - 4, margin + 270 + 200);
-    txt('Assinatura do supervisor', margin + 270, y - 14, { size:7, color:muted });
+    txt('Teste a vazio: '+fmtDate(val('vazioData')), mg, y, {size:9.5}); y -= 22;
+    txt(val('supervisorNome'), mg, y, {size:9.5});
+    hline(mg, y-4, mg+200); txt('Nome do supervisor', mg, y-13, {size:7, color:muted});
+    hline(mg+250, y-4, mg+460); txt('Assinatura do supervisor', mg+250, y-13, {size:7, color:muted});
     y -= 32;
 
-    // Section 2
+    // ── Section 2 ──
     ensure(90);
-    txt('CONFERÊNCIA DO DESEMPENHO DO EQUIPAMENTO', margin, y, { size:10.5, font:bold, color:green });
-    y -= 14;
-    hline(margin, y, pageW - margin);
-    y -= 14;
-    txt('A capacidade do equipamento está de acordo com o projeto (conferir modelo)?', margin, y, { size:9 });
-    y -= 16;
+    txt('CONFERÊNCIA DO DESEMPENHO DO EQUIPAMENTO', mg, y, {size:10, font:bold, color:greenDark});
+    y -= 4; hline(mg,y,pageW-mg,{t:.5, color: rgb(.7,.8,.72)}); y -= 14;
+    txt('A capacidade do equipamento está de acordo com o projeto (conferir modelo)?', mg, y, {size:9}); y -= 16;
     const cap = getRadio('capacidade');
-    page.drawRectangle({ x: margin, y: y - 2.5, width: 10, height: 10, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
-    if(cap === 'Sim') txt('X', margin + 1.7, y, { size:8, font:bold });
-    txt('Sim', margin + 16, y, { size:9 });
-    page.drawRectangle({ x: margin + 60, y: y - 2.5, width: 10, height: 10, borderWidth:0.7, borderColor: lineColor, color: rgb(1,1,1) });
-    if(cap === 'Não') txt('X', margin + 61.7, y, { size:8, font:bold });
-    txt('Não', margin + 76, y, { size:9 });
+    rect(mg, y-2.5, 10, 10, {fill:cap==='Sim'?rgb(.89,.97,.91):white, bc:cap==='Sim'?rgb(.12,.48,.25):lineC});
+    if(cap==='Sim') txt('✓', mg+1.5, y, {size:8, font:bold, color:greenDark});
+    txt('Sim', mg+15, y, {size:9});
+    rect(mg+58, y-2.5, 10, 10, {fill:cap==='Não'?rgb(.99,.91,.91):white, bc:cap==='Não'?rgb(.72,.19,.19):lineC});
+    if(cap==='Não') txt('✓', mg+59.5, y, {size:8, font:bold, color:rgb(.72,.19,.19)});
+    txt('Não', mg+73, y, {size:9});
     y -= 22;
-    txt('Teste com produto: ' + fmtDate(val('produtoData')), margin, y, { size:9.5 });
-    y -= 22;
-    txt(val('clienteNome'), margin, y, { size:9.5 });
-    hline(margin, y - 4, margin + 220);
-    txt('Nome do cliente', margin, y - 14, { size:7, color:muted });
-    hline(margin + 270, y - 4, margin + 270 + 200);
-    txt('Assinatura do cliente', margin + 270, y - 14, { size:7, color:muted });
+    txt('Teste com produto: '+fmtDate(val('produtoData')), mg, y, {size:9.5}); y -= 22;
+    txt(val('clienteNome'), mg, y, {size:9.5});
+    hline(mg, y-4, mg+200); txt('Nome do cliente', mg, y-13, {size:7, color:muted});
+    hline(mg+250, y-4, mg+460); txt('Assinatura do cliente', mg+250, y-13, {size:7, color:muted});
     y -= 32;
 
-    // Observações
-    ensure(50);
-    txt('OBSERVAÇÕES / PARECER TÉCNICO', margin, y, { size:10.5, font:bold, color:green });
-    y -= 14;
-    hline(margin, y, pageW - margin);
-    y -= 14;
-    const obsText = val('observacoes');
-    if(obsText){
-      const obsLines = wrap(obsText, pageW - 2*margin, 9.5, font);
-      obsLines.forEach(l=>{ ensure(14); txt(l, margin, y, { size:9.5 }); y -= 14; });
+    // ── Section 3 ──
+    ensure(60);
+    txt('OBSERVAÇÕES / PARECER TÉCNICO', mg, y, {size:10, font:bold, color:greenDark});
+    y -= 4; hline(mg,y,pageW-mg,{t:.5, color: rgb(.7,.8,.72)}); y -= 14;
+    const obs = val('observacoes');
+    if(obs){
+      wrap(obs, pageW-2*mg, 9.5, font).forEach(l => { ensure(14); txt(l,mg,y,{size:9.5}); y-=14; });
     } else {
-      for(let i=0;i<4;i++){ ensure(16); hline(margin, y, pageW - margin); y -= 16; }
+      for(let i=0;i<4;i++){ ensure(16); hline(mg,y,pageW-mg); y-=16; }
     }
-    y -= 6;
+    y -= 8;
 
-    // Footer notes
+    // ── Notes ──
     ensure(70);
     const notes = [
-      '1 - Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.',
-      '2 - O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.',
-      '3 - A infiltração de água no equipamento somente será corrigida no período de garantia.',
-      '*Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.'
+      '1 — Caso não seja possível a realização do start-up por falta de produto, elétrica ou outro motivo que não tenha sido ocasionado pela SR, os custos provenientes do novo deslocamento e horas de serviço serão faturados para o cliente.',
+      '2 — O cliente deverá informar com 07 (sete) dias de antecedência a data em que haverá condições para teste.',
+      '3 — A infiltração de água no equipamento somente será corrigida no período de garantia.',
+      '* Após a conclusão da montagem, recomenda-se uma reinspeção nos equipamentos externos quando em período de chuvas.'
     ];
-    notes.forEach(n=>{
-      const nl = wrap(n, pageW - 2*margin, 7.3, italic);
-      nl.forEach(l=>{ ensure(11); txt(l, margin, y, { size:7.3, font:italic, color:muted }); y -= 10; });
+    hline(mg,y,pageW-mg,{t:.4}); y -= 10;
+    notes.forEach(n => {
+      wrap(n, pageW-2*mg, 7.2, italic).forEach(l => { ensure(11); txt(l,mg,y,{size:7.2,font:italic,color:muted}); y-=10; });
     });
     y -= 14;
 
-    // Closing signatures
-    ensure(50);
-    hline(margin, y, pageW - margin);
-    y -= 16;
-    txt(val('footerLocal'), margin, y, { size:9 });
-    hline(margin, y - 4, margin + 110);
-    txt('Local', margin, y - 14, { size:7, color:muted });
-
-    txt(fmtDate(val('footerData')), margin + 130, y, { size:9 });
-    hline(margin + 130, y - 4, margin + 220);
-    txt('Data', margin + 130, y - 14, { size:7, color:muted });
-
-    txt(val('srEngenharia'), margin + 250, y, { size:9 });
-    hline(margin + 250, y - 4, margin + 380);
-    txt('SR Engenharia', margin + 250, y - 14, { size:7, color:muted });
-
-    txt(val('gestorMontagem'), margin + 400, y, { size:9 });
-    hline(margin + 400, y - 4, pageW - margin);
-    txt('Gestor de Montagem', margin + 400, y - 14, { size:7, color:muted });
+    // ── Closing ──
+    ensure(45);
+    hline(mg,y,pageW-mg); y -= 16;
+    txt(val('footerLocal'),mg,y,{size:9}); hline(mg,y-4,mg+100); txt('Local',mg,y-13,{size:7,color:muted});
+    txt(fmtDate(val('footerData')),mg+120,y,{size:9}); hline(mg+120,y-4,mg+210); txt('Data',mg+120,y-13,{size:7,color:muted});
+    txt(val('srEngenharia'),mg+240,y,{size:9}); hline(mg+240,y-4,mg+370); txt('SR Engenharia',mg+240,y-13,{size:7,color:muted});
+    txt(val('gestorMontagem'),mg+400,y,{size:9}); hline(mg+400,y-4,pageW-mg); txt('Gestor de Montagem',mg+400,y-13,{size:7,color:muted});
 
     const bytes = await doc.save();
-    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const blob = new Blob([bytes], {type:'application/pdf'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const tagPart = val('tag') ? val('tag').replace(/[^a-zA-Z0-9_-]/g,'') + '_' : '';
-    a.href = url;
-    a.download = 'checklist_' + tagPart + 'elevador_canecas.pdf';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const tagPart = val('tag').replace(/[^a-zA-Z0-9_-]/g,'');
+    a.href=url; a.download='checklist_'+(tagPart?tagPart+'_':'')+'elevador_canecas.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(url), 5000);
-    msg.textContent = 'PDF gerado e baixado. Abra o arquivo para imprimir.';
+    msg.textContent = 'PDF gerado e baixado com sucesso. Abra o arquivo para imprimir.';
   } catch(err){
     console.error(err);
     msg.textContent = 'Não foi possível gerar o PDF. Verifique sua conexão e tente novamente.';
