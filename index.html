@@ -509,7 +509,8 @@ try {
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
 
-    const pageW = 595.28, pageH = 841.89, mg = 42;
+    const pageW = 595.28, pageH = 841.89, mg = 26;
+    const headerH = 58;
     const green = rgb(0.102, 0.322, 0.251);
     const greenDark = rgb(0.059, 0.322, 0.161);
     const ink = rgb(0.10, 0.11, 0.10);
@@ -519,8 +520,9 @@ try {
 
     let page = doc.addPage([pageW, pageH]);
     let y = pageH - mg;
+    let firstPage = true;
 
-    const newPage = () => { page = doc.addPage([pageW, pageH]); y = pageH - mg; };
+    const newPage = () => { page = doc.addPage([pageW, pageH]); y = pageH - mg; firstPage = false; };
     const ensure = h => { if(y - h < mg) newPage(); };
 
     const txt = (str, x, yy, opts={}) => {
@@ -543,17 +545,17 @@ try {
       return lines.length ? lines : [''];
     };
 
-    // ── Header block ──
-    rect(mg, y-36, pageW-2*mg, 44, {fill:rgb(0.059,0.322,0.161), bw:0});
+    // ── Header block (faixa de ponta a ponta, fundo branco para a logo aparecer) ──
+    hline(0, pageH-headerH, pageW, {t:2.5, color: greenDark});
     page.drawImage(logoImage, {
-      x: mg + 12,
-      y: y - 26,
+      x: mg,
+      y: pageH - headerH/2 - logoHeight/2 + 4,
       width: logoWidth,
       height: logoHeight,
     });
-    txt('Check-List de Entrega — Elevador de Canecas', mg+100, y-10, {size:11, font:bold, color:white});
-    txt('TAG: '+val('tag')+'   Código: '+val('codigo')+'   Máscara: '+val('mascara'), mg+100, y-22, {size:8.5, font, color:rgb(.8,.9,.85)});
-    y -= 52;
+    txt('Check-List de Entrega — Elevador de Canecas', mg+logoWidth+16, pageH-24, {size:11, font:bold, color:greenDark});
+    txt('TAG: '+val('tag')+'   Código: '+val('codigo')+'   Máscara: '+val('mascara'), mg+logoWidth+16, pageH-37, {size:8.5, font, color:muted});
+    y = pageH - headerH - 14;
 
     txt('Pedido: '+val('pedido'), mg, y, {size:9});
     txt('Cliente: '+val('cliente'), mg+140, y, {size:9});
