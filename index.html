@@ -486,22 +486,18 @@ async function gerarPDF(){
   const btn = document.getElementById('btnPdf');
   const msg = document.getElementById('statusMsg');
   btn.disabled = true; msg.textContent = 'Gerando PDF…';
-  try {
-    const { PDFDocument, StandardFonts, rgb } = PDFLib;
-    const doc = await PDFDocument.create();
+try {
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
     const doc = await PDFDocument.create();
     
-    // --- ADICIONE ISTO AQUI ---
+    // --- CARREGANDO A LOGO DO GITHUB ---
     const logoUrl = 'https://raw.githubusercontent.com/Comercial-GrupoSR/Checklist_Equipamentos/main/sr-sem-fundo%20(2).png';
     const logoImageBytes = await fetch(logoUrl).then(res => res.arrayBuffer());
     const logoImage = await doc.embedPng(logoImageBytes);
     const logoHeight = 24;
     const logoWidth = (logoImage.width / logoImage.height) * logoHeight;
-    // --------------------------
+    // -----------------------------------
 
-    const font = await doc.embedFont(StandardFonts.Helvetica);
-    
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
