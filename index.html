@@ -55,11 +55,14 @@
     flex: 1; padding: 18px 22px;
     display: flex; align-items: center; gap: 18px;
   }
-  .header-logo {
-    font-weight: 800; font-size: 22px; color: #fff;
-    letter-spacing: -0.5px; line-height: 1;
+  .header-logo-img {
+    max-height: 28px;
+    width: auto;
+    object-fit: contain;
+    /* Se a sua logo já for branca, apague a linha abaixo. 
+       Se ela for preta/colorida e você quiser que fique branca na faixa verde, mantenha. */
+    filter: brightness(0) invert(1); 
   }
-  .header-logo em { color: #7fdbaa; font-style: normal; }
   .header-divider { width: 1px; height: 36px; background: rgba(255,255,255,.2); }
   .header-text { color: #fff; }
   .header-text h1 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: .1px; }
@@ -242,7 +245,7 @@
   <div class="header">
     <div class="header-stripe"></div>
     <div class="header-body">
-      <div class="header-logo">GRUPO <em>SR</em></div>
+      <img src="sr-sem-fundo (2).png" alt="Grupo SR" class="header-logo-img">
       <div class="header-divider"></div>
       <div class="header-text">
         <h1>Check-List de Entrega — Elevador de Canecas</h1>
@@ -486,6 +489,19 @@ async function gerarPDF(){
   try {
     const { PDFDocument, StandardFonts, rgb } = PDFLib;
     const doc = await PDFDocument.create();
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+    const doc = await PDFDocument.create();
+    
+    // --- ADICIONE ISTO AQUI ---
+    const logoUrl = 'https://raw.githubusercontent.com/Comercial-GrupoSR/Checklist_Equipamentos/main/sr-sem-fundo%20(2).png';
+    const logoImageBytes = await fetch(logoUrl).then(res => res.arrayBuffer());
+    const logoImage = await doc.embedPng(logoImageBytes);
+    const logoHeight = 24;
+    const logoWidth = (logoImage.width / logoImage.height) * logoHeight;
+    // --------------------------
+
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const bold = await doc.embedFont(StandardFonts.HelveticaBold);
     const italic = await doc.embedFont(StandardFonts.HelveticaOblique);
@@ -526,7 +542,12 @@ async function gerarPDF(){
 
     // ── Header block ──
     rect(mg, y-36, pageW-2*mg, 44, {fill:rgb(0.059,0.322,0.161), bw:0});
-    txt('GRUPO SR', mg+12, y-12, {size:15, font:bold, color:white});
+    page.drawImage(logoImage, {
+      x: mg + 12,
+      y: y - 26,
+      width: logoWidth,
+      height: logoHeight,
+    });
     txt('Check-List de Entrega — Elevador de Canecas', mg+100, y-10, {size:11, font:bold, color:white});
     txt('TAG: '+val('tag')+'   Código: '+val('codigo')+'   Máscara: '+val('mascara'), mg+100, y-22, {size:8.5, font, color:rgb(.8,.9,.85)});
     y -= 52;
