@@ -2,7 +2,9 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0,
+                 viewport-fit=cover">
 
   <title>Leitor de Código de Barras</title>
 
@@ -14,33 +16,35 @@
     body {
       margin: 0;
       padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", sans-serif;
       background: #f2f2f7;
       color: #111;
     }
 
     .container {
       max-width: 600px;
-      margin: 0 auto;
+      margin: auto;
     }
 
     h1 {
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
 
-    .subtitle {
+    .subtitulo {
       text-align: center;
       color: #666;
       margin-bottom: 20px;
     }
 
-    .scanner {
+    .camera {
       position: relative;
-      overflow: hidden;
-      border-radius: 18px;
-      background: #000;
+      width: 100%;
       aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 18px;
+      overflow: hidden;
     }
 
     video {
@@ -49,26 +53,26 @@
       object-fit: cover;
     }
 
-    .linha {
+    .mira {
       position: absolute;
-      left: 10%;
-      right: 10%;
-      top: 50%;
+      left: 8%;
+      right: 8%;
+      top: 45%;
       height: 3px;
-      background: #ff2d55;
-      box-shadow: 0 0 10px #ff2d55;
+      background: red;
+      box-shadow: 0 0 10px red;
     }
 
     button {
       width: 100%;
-      padding: 16px;
-      margin-top: 15px;
       border: 0;
       border-radius: 12px;
-      background: #007aff;
-      color: white;
+      padding: 16px;
+      margin-top: 12px;
       font-size: 17px;
-      font-weight: 600;
+      font-weight: bold;
+      color: white;
+      background: #007aff;
     }
 
     button:active {
@@ -79,29 +83,42 @@
       background: #ff3b30;
     }
 
+    #copiar {
+      background: #34c759;
+    }
+
     .resultado {
-      margin-top: 20px;
-      padding: 20px;
       background: white;
       border-radius: 15px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.1);
     }
 
     .numero {
       font-size: 28px;
       font-weight: bold;
-      word-break: break-all;
-      margin: 10px 0;
       color: #007aff;
+      word-break: break-all;
+      margin-top: 10px;
     }
 
     .tipo {
       color: #666;
+      margin-top: 8px;
+    }
+
+    .mensagem {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #fff3cd;
+      color: #664d03;
     }
 
     .erro {
-      color: #ff3b30;
-      margin-top: 15px;
+      background: #ffebee;
+      color: #b00020;
     }
 
     .oculto {
@@ -112,204 +129,441 @@
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <h1>📷 Leitor de Código</h1>
+  <h1>📷 Leitor de Código</h1>
 
-    <p class="subtitle">
-      Aponte a câmera para o código de barras
-    </p>
+  <p class="subtitulo">
+    Aponte a câmera para o código de barras
+  </p>
 
-    <div class="scanner">
-      <video id="video" playsinline></video>
-      <div class="linha"></div>
-    </div>
+  <div class="camera">
+    <video id="video"
+           autoplay
+           muted
+           playsinline
+           webkit-playsinline>
+    </video>
 
-    <button id="iniciar">
-      📷 Iniciar câmera
+    <div class="mira"></div>
+  </div>
+
+  <button id="iniciar">
+    📷 Abrir câmera
+  </button>
+
+  <button id="parar" class="oculto">
+    ⏹ Parar câmera
+  </button>
+
+  <div id="mensagem" class="mensagem oculto"></div>
+
+  <div id="resultado" class="resultado oculto">
+
+    <strong>Número encontrado:</strong>
+
+    <div id="numero" class="numero"></div>
+
+    <div id="tipo" class="tipo"></div>
+
+    <button id="copiar">
+      📋 Copiar número
     </button>
-
-    <button id="parar" class="oculto">
-      ⏹ Parar câmera
-    </button>
-
-    <div id="resultado" class="resultado oculto">
-
-      <div>Resultado:</div>
-
-      <div id="numero" class="numero"></div>
-
-      <div id="tipo" class="tipo"></div>
-
-      <button id="copiar">
-        📋 Copiar número
-      </button>
-
-    </div>
-
-    <div id="erro" class="erro"></div>
 
   </div>
 
-
-  <!-- ZXing Browser -->
-  <script src="https://unpkg.com/@zxing/browser@0.2.1/umd/index.min.js"></script>
+</div>
 
 
-  <script>
-
-    const video = document.getElementById("video");
-    const iniciar = document.getElementById("iniciar");
-    const parar = document.getElementById("parar");
-
-    const resultado = document.getElementById("resultado");
-    const numero = document.getElementById("numero");
-    const tipo = document.getElementById("tipo");
-
-    const copiar = document.getElementById("copiar");
-    const erro = document.getElementById("erro");
-
-    let leitor = null;
-    let controles = null;
-    let ultimoCodigo = "";
+<!-- Biblioteca ZXing -->
+<script src="https://unpkg.com/@zxing/browser@0.2.1/umd/index.min.js"></script>
 
 
-    iniciar.addEventListener("click", async () => {
+<script>
 
-      erro.textContent = "";
+const video = document.getElementById("video");
+const iniciar = document.getElementById("iniciar");
+const parar = document.getElementById("parar");
 
-      resultado.classList.add("oculto");
+const mensagem = document.getElementById("mensagem");
+const resultado = document.getElementById("resultado");
 
-      iniciar.classList.add("oculto");
-      parar.classList.remove("oculto");
+const numero = document.getElementById("numero");
+const tipo = document.getElementById("tipo");
+const copiar = document.getElementById("copiar");
 
-      try {
+let stream = null;
+let leitor = null;
+let controles = null;
 
-        leitor = new ZXingBrowser.BrowserMultiFormatReader();
+let ultimoCodigo = "";
+let ultimaLeitura = 0;
 
-        /*
-          Tentamos pedir diretamente a câmera traseira.
-          Isso é especialmente útil no iPhone.
-        */
 
-        const constraints = {
-          video: {
-            facingMode: {
-              ideal: "environment"
-            },
-            width: {
-              ideal: 1920
-            },
-            height: {
-              ideal: 1080
-            }
+/*
+--------------------------------------------------
+MOSTRAR MENSAGEM
+--------------------------------------------------
+*/
+
+function mostrarMensagem(texto, erro = false) {
+
+  mensagem.textContent = texto;
+  mensagem.classList.remove("oculto");
+
+  if (erro) {
+    mensagem.classList.add("erro");
+  } else {
+    mensagem.classList.remove("erro");
+  }
+}
+
+
+/*
+--------------------------------------------------
+INICIAR CÂMERA
+--------------------------------------------------
+*/
+
+iniciar.addEventListener("click", async () => {
+
+  mensagem.classList.add("oculto");
+  resultado.classList.add("oculto");
+
+  ultimoCodigo = "";
+
+  /*
+  Verifica HTTPS
+  */
+
+  if (!window.isSecureContext) {
+
+    mostrarMensagem(
+      "Este site precisa ser aberto pelo endereço HTTPS do GitHub Pages.",
+      true
+    );
+
+    return;
+  }
+
+
+  /*
+  Verifica suporte à câmera
+  */
+
+  if (
+    !navigator.mediaDevices ||
+    !navigator.mediaDevices.getUserMedia
+  ) {
+
+    mostrarMensagem(
+      "O navegador não disponibilizou acesso à câmera.",
+      true
+    );
+
+    return;
+  }
+
+
+  try {
+
+    mostrarMensagem(
+      "Solicitando acesso à câmera..."
+    );
+
+
+    /*
+    Abre diretamente a câmera traseira.
+    */
+
+    stream =
+      await navigator.mediaDevices.getUserMedia({
+
+        video: {
+          facingMode: {
+            ideal: "environment"
           },
-          audio: false
-        };
+
+          width: {
+            ideal: 1920
+          },
+
+          height: {
+            ideal: 1080
+          }
+        },
+
+        audio: false
+
+      });
 
 
-        controles = await leitor.decodeFromConstraints(
-          constraints,
-          video,
-          (resultadoLeitura, erroLeitura) => {
+    /*
+    Coloca a câmera no vídeo.
+    */
 
-            if (!resultadoLeitura) {
-              return;
-            }
+    video.srcObject = stream;
 
-            const texto = resultadoLeitura.getText();
+    await video.play();
 
-            /*
-              Evita ficar mostrando o mesmo código
-              várias vezes enquanto a câmera continua lendo.
-            */
 
-            if (texto === ultimoCodigo) {
-              return;
-            }
+    mostrarMensagem(
+      "✅ Câmera aberta. Aponte para o código de barras."
+    );
 
-            ultimoCodigo = texto;
 
-            numero.textContent = texto;
+    iniciar.classList.add("oculto");
+    parar.classList.remove("oculto");
 
-            try {
-              tipo.textContent =
-                "Tipo: " +
-                resultadoLeitura.getBarcodeFormat();
-            } catch {
-              tipo.textContent = "Código detectado";
-            }
 
-            resultado.classList.remove("oculto");
+    /*
+    Inicia o leitor
+    */
 
-            /*
-              Vibração no celular, quando disponível.
-            */
+    leitor =
+      new ZXingBrowser.BrowserMultiFormatReader();
 
-            if (navigator.vibrate) {
-              navigator.vibrate(150);
-            }
+
+    controles =
+      await leitor.decodeFromStream(
+        stream,
+        video,
+        (resultadoLeitura, erroLeitura) => {
+
+          if (!resultadoLeitura) {
+            return;
+          }
+
+
+          const codigo =
+            resultadoLeitura.getText();
+
+
+          /*
+          Evita múltiplas leituras
+          */
+
+          const agora = Date.now();
+
+          if (
+            codigo === ultimoCodigo &&
+            agora - ultimaLeitura < 3000
+          ) {
+            return;
+          }
+
+
+          ultimoCodigo = codigo;
+          ultimaLeitura = agora;
+
+
+          /*
+          Mostra resultado
+          */
+
+          numero.textContent = codigo;
+
+
+          try {
+
+            tipo.textContent =
+              "Tipo: " +
+              resultadoLeitura
+                .getBarcodeFormat();
+
+          } catch {
+
+            tipo.textContent =
+              "Código de barras detectado";
 
           }
-        );
-
-      } catch (e) {
-
-        console.error(e);
-
-        erro.textContent =
-          "Não foi possível acessar a câmera. " +
-          "Verifique se você permitiu o acesso à câmera.";
-
-        iniciar.classList.remove("oculto");
-        parar.classList.add("oculto");
-      }
-
-    });
 
 
-    parar.addEventListener("click", () => {
-
-      if (controles) {
-        controles.stop();
-        controles = null;
-      }
-
-      if (leitor) {
-        leitor.reset();
-      }
-
-      video.srcObject = null;
-
-      iniciar.classList.remove("oculto");
-      parar.classList.add("oculto");
-
-    });
+          resultado.classList.remove("oculto");
 
 
-    copiar.addEventListener("click", async () => {
+          /*
+          Vibração
+          */
 
-      const texto = numero.textContent;
+          if (navigator.vibrate) {
+            navigator.vibrate(150);
+          }
 
-      try {
+        }
+      );
 
-        await navigator.clipboard.writeText(texto);
+  }
 
-        copiar.textContent = "✅ Copiado!";
+  catch (erro) {
 
-        setTimeout(() => {
-          copiar.textContent = "📋 Copiar número";
-        }, 1500);
+    console.error(erro);
 
-      } catch {
+    let texto =
+      "Não foi possível abrir a câmera.";
 
-        alert("Não foi possível copiar automaticamente.");
 
-      }
+    if (erro.name === "NotAllowedError") {
 
-    });
+      texto =
+        "O acesso à câmera foi bloqueado. " +
+        "Verifique as permissões do Chrome " +
+        "para este site.";
 
-  </script>
+    }
+
+    else if (erro.name === "NotFoundError") {
+
+      texto =
+        "Nenhuma câmera foi encontrada.";
+
+    }
+
+    else if (erro.name === "NotReadableError") {
+
+      texto =
+        "A câmera está sendo usada por outro aplicativo.";
+
+    }
+
+    else if (erro.name === "SecurityError") {
+
+      texto =
+        "O navegador bloqueou o acesso à câmera.";
+
+    }
+
+
+    mostrarMensagem(texto, true);
+
+
+    pararCamera();
+
+  }
+
+});
+
+
+/*
+--------------------------------------------------
+PARAR CÂMERA
+--------------------------------------------------
+*/
+
+function pararCamera() {
+
+  if (controles) {
+
+    try {
+      controles.stop();
+    } catch {}
+
+    controles = null;
+  }
+
+
+  if (leitor) {
+
+    try {
+      leitor.reset();
+    } catch {}
+
+    leitor = null;
+  }
+
+
+  if (stream) {
+
+    stream
+      .getTracks()
+      .forEach(track => track.stop());
+
+    stream = null;
+  }
+
+
+  video.srcObject = null;
+
+
+  iniciar.classList.remove("oculto");
+  parar.classList.add("oculto");
+}
+
+
+parar.addEventListener(
+  "click",
+  pararCamera
+);
+
+
+/*
+--------------------------------------------------
+COPIAR
+--------------------------------------------------
+*/
+
+copiar.addEventListener("click", async () => {
+
+  const texto =
+    numero.textContent.trim();
+
+
+  try {
+
+    await navigator
+      .clipboard
+      .writeText(texto);
+
+
+    copiar.textContent =
+      "✅ Número copiado!";
+
+
+    setTimeout(() => {
+
+      copiar.textContent =
+        "📋 Copiar número";
+
+    }, 1500);
+
+  }
+
+  catch {
+
+    /*
+    Fallback para iPhone
+    */
+
+    const campo =
+      document.createElement("textarea");
+
+    campo.value = texto;
+
+    document.body.appendChild(campo);
+
+    campo.select();
+
+    document.execCommand("copy");
+
+    campo.remove();
+
+
+    copiar.textContent =
+      "✅ Número copiado!";
+
+
+    setTimeout(() => {
+
+      copiar.textContent =
+        "📋 Copiar número";
+
+    }, 1500);
+
+  }
+
+});
+
+</script>
 
 </body>
 </html>
