@@ -65,6 +65,23 @@
       pointer-events: none;
     }
 
+    .foco-toque {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(1.3);
+      opacity: 0;
+      transition: transform .3s ease, opacity .3s ease;
+    }
+
+    .foco-toque.ativo {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
     .area-botoes {
       display: flex;
       gap: 10px;
@@ -149,6 +166,13 @@
       margin-top: 8px;
     }
 
+    .dica-foco {
+      text-align: center;
+      color: #007aff;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
   </style>
 </head>
 
@@ -165,7 +189,7 @@
 
   <!-- CÂMERA -->
 
-  <div class="camera">
+  <div class="camera" id="areaCamera">
 
     <video
       id="video"
@@ -177,12 +201,16 @@
 
     <div class="mira"></div>
 
+    <div class="foco-toque" id="focoToque"></div>
+
   </div>
 
 
   <div id="cameraInfo" class="camera-info">
     Câmera não iniciada
   </div>
+
+  <div class="dica-foco" id="dicaFoco"></div>
 
 
   <!-- BOTÕES -->
@@ -248,6 +276,7 @@ ZXING
 -->
 
 <script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 
 
 <script>
@@ -263,6 +292,9 @@ ELEMENTOS
 
 const video =
   document.getElementById("video");
+
+const areaCamera =
+  document.getElementById("areaCamera");
 
 const iniciar =
   document.getElementById("iniciar");
@@ -291,6 +323,12 @@ const copiar =
 const cameraInfo =
   document.getElementById("cameraInfo");
 
+const focoToque =
+  document.getElementById("focoToque");
+
+const dicaFoco =
+  document.getElementById("dicaFoco");
+
 
 /*
 ==================================================
@@ -311,6 +349,8 @@ let cameraAtual = 0;
 let ultimoCodigo = "";
 
 let ultimaLeitura = 0;
+
+let trackAtual = null;
 
 
 /*
@@ -501,6 +541,262 @@ async function obterCameras() {
 
 /*
 ==================================================
+CRIAR HINTS DE FORMATO
+==================================================
+
+Por padrão o ZXing NÃO tenta decodificar
+alguns formatos (como ITF - Interleaved 2 of 5)
+para evitar falsos positivos.
+
+Códigos gerados por ERPs (como o Focco) e
+boletos costumam usar ITF ou Code 128,
+então habilitamos explicitamente todos os
+formatos relevantes de código de barras 1D.
+*/
+
+function criarHints() {
+
+  try {
+
+    const hints = new Map();
+
+    const formatos = [
+
+      ZXing.BarcodeFormat.CODE_128,
+
+      ZXing.BarcodeFormat.CODE_39,
+
+      ZXing.BarcodeFormat.CODE_93,
+
+      ZXing.BarcodeFormat.CODABAR,
+
+      ZXing.BarcodeFormat.ITF,
+
+      ZXing.BarcodeFormat.EAN_13,
+
+      ZXing.BarcodeFormat.EAN_8,
+
+      ZXing.BarcodeFormat.UPC_A,
+
+      ZXing.BarcodeFormat.UPC_E,
+
+      ZXing.BarcodeFormat.QR_CODE,
+
+      ZXing.BarcodeFormat.DATA_MATRIX,
+
+      ZXing.BarcodeFormat.PDF_417
+
+    ];
+
+    hints.set(
+      ZXing.DecodeHintType.POSSIBLE_FORMATS,
+      formatos
+    );
+
+    /*
+    Tenta mais forte, mais devagar,
+    mas mais confiável para códigos
+    difíceis de ler.
+    */
+
+    hints.set(
+      ZXing.DecodeHintType.TRY_HARDER,
+      true
+    );
+
+    return hints;
+
+  }
+
+  catch (erro) {
+
+    console.warn(
+      "Não foi possível criar hints de formato:",
+      erro
+    );
+
+    return undefined;
+
+  }
+
+}
+
+
+/*
+==================================================
+APLICAR FOCO CONTÍNUO / RESOLUÇÃO
+==================================================
+*/
+
+async function aplicarConfiguracoesAvancadas(track) {
+
+  if (!track) {
+    return;
+  }
+
+  try {
+
+    const capacidades =
+      track.getCapabilities
+        ? track.getCapabilities()
+        : {};
+
+    const constraintsAvancadas = {};
+
+    /*
+    Foco contínuo, se suportado.
+    Muito importante para leitura
+    de código de barras de perto.
+    */
+
+    if (
+      capacidades.focusMode &&
+      capacidades.focusMode.includes("continuous")
+    ) {
+
+      constraintsAvancadas.focusMode =
+        "continuous";
+
+      dicaFoco.textContent =
+        "🔎 Foco automático contínuo ativado";
+
+    }
+
+    else {
+
+      dicaFoco.textContent =
+        "💡 Toque na imagem da câmera para focar";
+
+    }
+
+
+    /*
+    Zoom leve pode ajudar em
+    códigos pequenos, mas deixamos
+    o padrão do dispositivo.
+    */
+
+    if (Object.keys(constraintsAvancadas).length > 0) {
+
+      await track.applyConstraints({
+        advanced: [constraintsAvancadas]
+      });
+
+    }
+
+  }
+
+  catch (erro) {
+
+    console.warn(
+      "Não foi possível aplicar foco contínuo:",
+      erro
+    );
+
+    dicaFoco.textContent =
+      "💡 Toque na imagem da câmera para focar";
+
+  }
+
+}
+
+
+/*
+==================================================
+TOQUE PARA FOCAR (iOS/Android)
+==================================================
+*/
+
+areaCamera.addEventListener(
+  "click",
+  async function(evento) {
+
+    if (!trackAtual) {
+      return;
+    }
+
+
+    /*
+    Mostra o círculo de foco
+    na posição tocada.
+    */
+
+    const rect =
+      areaCamera.getBoundingClientRect();
+
+    const x =
+      evento.clientX - rect.left;
+
+    const y =
+      evento.clientY - rect.top;
+
+    focoToque.style.left = x + "px";
+    focoToque.style.top = y + "px";
+
+    focoToque.classList.add("ativo");
+
+    setTimeout(function() {
+      focoToque.classList.remove("ativo");
+    }, 500);
+
+
+    try {
+
+      const capacidades =
+        trackAtual.getCapabilities
+          ? trackAtual.getCapabilities()
+          : {};
+
+      /*
+      Alguns dispositivos suportam
+      foco por ponto de interesse.
+      */
+
+      if (
+        capacidades.focusMode &&
+        capacidades.focusMode.includes("single-shot")
+      ) {
+
+        await trackAtual.applyConstraints({
+          advanced: [{ focusMode: "single-shot" }]
+        });
+
+      }
+
+      else if (
+        capacidades.focusMode &&
+        capacidades.focusMode.includes("continuous")
+      ) {
+
+        /*
+        Força reaplicar o foco contínuo,
+        o que em muitos aparelhos
+        já dispara um novo ajuste.
+        */
+
+        await trackAtual.applyConstraints({
+          advanced: [{ focusMode: "continuous" }]
+        });
+
+      }
+
+    }
+
+    catch (erro) {
+
+      console.warn(
+        "Foco manual não suportado neste dispositivo:",
+        erro
+      );
+
+    }
+
+  }
+);
+
+
+/*
+==================================================
 INICIAR CÂMERA
 ==================================================
 */
@@ -528,6 +824,8 @@ async function iniciarCamera() {
 
   tipo.textContent = "";
 
+  dicaFoco.textContent = "";
+
 
   try {
 
@@ -545,15 +843,24 @@ async function iniciarCamera() {
 
 
     /*
-    Primeiro solicita permissão.
-    Isso é importante principalmente
-    em celulares.
+    Primeiro solicita permissão
+    já pedindo alta resolução,
+    o que ajuda MUITO na leitura
+    de códigos de barras pequenos.
     */
 
     const permissao =
       await navigator.mediaDevices.getUserMedia({
 
-        video: true,
+        video: {
+
+          facingMode: { ideal: "environment" },
+
+          width: { ideal: 1920 },
+
+          height: { ideal: 1080 }
+
+        },
 
         audio: false
 
@@ -583,11 +890,16 @@ async function iniciarCamera() {
 
 
     /*
-    Cria o leitor.
+    Cria o leitor com hints
+    de formato (ITF, Code128, etc).
     */
 
-    leitor =
-      new ZXingBrowser.BrowserMultiFormatReader();
+    const hints =
+      criarHints();
+
+    leitor = hints
+      ? new ZXingBrowser.BrowserMultiFormatReader(hints)
+      : new ZXingBrowser.BrowserMultiFormatReader();
 
 
     /*
@@ -613,13 +925,21 @@ async function iniciarCamera() {
 
 
     /*
-    Inicia câmera e leitor.
+    Inicia câmera e leitor,
+    já pedindo alta resolução.
     */
 
     controles =
-      await leitor.decodeFromVideoDevice(
+      await leitor.decodeFromConstraints(
 
-        cameraId,
+        {
+          video: {
+            deviceId: { exact: cameraId },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        },
 
         video,
 
@@ -743,6 +1063,46 @@ async function iniciarCamera() {
 
         }
       );
+
+
+    /*
+    Guarda a track atual para
+    permitir foco manual por toque
+    e aplicar foco contínuo.
+    */
+
+    try {
+
+      if (
+        video.srcObject &&
+        video.srcObject.getVideoTracks
+      ) {
+
+        const tracks =
+          video.srcObject.getVideoTracks();
+
+        trackAtual =
+          tracks && tracks.length > 0
+            ? tracks[0]
+            : null;
+
+
+        await aplicarConfiguracoesAvancadas(
+          trackAtual
+        );
+
+      }
+
+    }
+
+    catch (erro) {
+
+      console.warn(
+        "Não foi possível acessar a track de vídeo:",
+        erro
+      );
+
+    }
 
 
     /*
@@ -1051,6 +1411,9 @@ function pararCameraInterno() {
 
   }
 
+
+  trackAtual = null;
+
 }
 
 
@@ -1082,6 +1445,9 @@ function pararCamera() {
 
   cameraInfo.textContent =
     "Câmera não iniciada";
+
+  dicaFoco.textContent =
+    "";
 
 
   mostrarMensagem(
