@@ -58,7 +58,11 @@
     justify-content:center;
     overflow:hidden;
   }
-  #video{ width:100%; height:100%; object-fit:cover; display:none; }
+  /* "contain" e não "cover": com cover, as laterais da imagem ficam
+     escondidas, mas o decodificador continua analisando o quadro inteiro.
+     O supervisor mira por uma janela que não corresponde ao que é lido.
+     Com contain, o que aparece na tela é exatamente o que é analisado. */
+  #video{ width:100%; height:100%; object-fit:contain; display:none; background:#000; }
   .placeholder{
     color:#8e8e93; text-align:center; padding:24px; font-size:14px;
     display:flex; flex-direction:column; align-items:center; gap:10px;
@@ -156,7 +160,7 @@
   <div id="mensagem"></div>
 
   <div class="card">
-    <div class="video-wrap">
+    <div class="video-wrap" id="videoWrap">
       <video id="video" playsinline muted autoplay></video>
       <div class="placeholder" id="placeholder">
         <div class="icon">📷</div>
@@ -227,10 +231,49 @@
   // Formatos aceitos. Restringir a lista acelera muito a decodificação e
   // reduz leituras erradas. Remova/adicione conforme os códigos usados.
   var FORMATOS_ACEITOS = [
-    'CODE_128', 'CODE_39', 'EAN_13', 'EAN_8',
+    'CODE_128', 'CODE_39', 'CODE_93', 'EAN_13', 'EAN_8',
     'UPC_A', 'UPC_E', 'ITF', 'CODABAR',
-    'QR_CODE', 'DATA_MATRIX'
+    'QR_CODE', 'DATA_MATRIX', 'PDF_417', 'AZTEC'
   ];
+
+  // Valores do enum DecodeHintType do ZXing. A biblioteca não exporta esse
+  // enum na build para navegador, então os números vão explícitos aqui.
+  // Eles são estáveis (espelham o ZXing original em Java).
+  var HINT_POSSIBLE_FORMATS = 2;
+  var HINT_TRY_HARDER = 3;
+  var HINT_CODE_39_CHECK_DIGIT = 6;
+  var HINT_CODE_39_EXTENDIDO = 7;
+
+  // TRY_HARDER faz o ZXing varrer mais linhas por quadro (ajuda em código
+  // torto, sujo ou mal impresso). NÃO resolve código na vertical: a rotação
+  // interna da biblioteca está quebrada (ver LEITURA_GIRADA abaixo).
+  var TRY_HARDER = true;
+
+  // Varredura do quadro girado em 90°, feita por nós.
+  //
+  // POR QUE ISTO EXISTE: um código de barras 1D só é lido varrendo linhas
+  // HORIZONTAIS da imagem. Se a etiqueta está impressa na vertical (ou o
+  // celular está numa orientação diferente da esperada), o código nunca é
+  // encontrado. O ZXing teria um tratamento para isso via TRY_HARDER, mas
+  // no @zxing/browser 0.2.1 ele está com defeito: rotate() chama
+  // getTempCanvasElement(), que testa "null === this.tempCanvasElement"
+  // enquanto o campo vale undefined — o teste falha, a função devolve
+  // undefined e o rotate lança "Could not create a Canvas element.".
+  // A exceção é engolida silenciosamente pelo MultiFormatReader, então o
+  // app simplesmente não lê e não dá nenhum aviso.
+  //
+  // A solução aqui é girar o quadro num canvas nosso e decodificar de novo.
+  var LEITURA_GIRADA = true;
+  var INTERVALO_GIRADO_MS = 300;
+
+  // Ligue apenas se as etiquetas usarem dígito verificador mod-43 no Code 39.
+  // Com isso ligado o ZXing valida e REMOVE o dígito do resultado; desligado,
+  // o dígito aparece grudado no final do código.
+  var CODE39_COM_DIGITO_VERIFICADOR = false;
+
+  // Code 39 estendido permite letras minúsculas e símbolos codificados em
+  // pares de caracteres. Ligue se as etiquetas tiverem minúsculas.
+  var CODE39_ESTENDIDO = false;
 
   // Intervalo entre tentativas de decodificação (ms). O padrão da
   // biblioteca é 500 ms, o que deixa a leitura visivelmente lenta.
@@ -257,9 +300,12 @@
   var wakeLock = null;
   var lanternaLigada = false;
   var timerMensagem = null;
+  var canvasGirado = null;
+  var timerGirado = null;
 
   // ---------- Elementos ----------
   var video = document.getElementById('video');
+  var videoWrap = document.getElementById('videoWrap');
   var placeholder = document.getElementById('placeholder');
   var scanOverlay = document.getElementById('scanOverlay');
   var flashOk = document.getElementById('flashOk');
@@ -420,31 +466,44 @@
   }
 
   // ---------- Leitor ----------
+  function montarHints(){
+    var hints = new Map();
+    if(TRY_HARDER){ hints.set(HINT_TRY_HARDER, true); }
+    if(CODE39_COM_DIGITO_VERIFICADOR){ hints.set(HINT_CODE_39_CHECK_DIGIT, true); }
+    if(CODE39_ESTENDIDO){ hints.set(HINT_CODE_39_EXTENDIDO, true); }
+    try{
+      var BF = ZXingBrowser.BarcodeFormat;
+      if(BF){
+        var formatos = [];
+        FORMATOS_ACEITOS.forEach(function(nome){
+          if(typeof BF[nome] !== 'undefined'){ formatos.push(BF[nome]); }
+        });
+        if(formatos.length > 0){ hints.set(HINT_POSSIBLE_FORMATS, formatos); }
+      }
+    }catch(e){}
+    return hints;
+  }
+
   function obterLeitor(){
     if(!codeReader){
-      codeReader = new ZXingBrowser.BrowserMultiFormatReader(undefined, {
+      // Os hints precisam ir no CONSTRUTOR: é ele que chama reader.setHints().
+      codeReader = new ZXingBrowser.BrowserMultiFormatReader(montarHints(), {
         delayBetweenScanAttempts: INTERVALO_TENTATIVA_MS,
         delayBetweenScanSuccess: INTERVALO_TENTATIVA_MS
       });
-      // Restringe os formatos, quando a lista de formatos estiver disponível.
-      try{
-        var BF = ZXingBrowser.BarcodeFormat;
-        if(BF){
-          var formatos = [];
-          FORMATOS_ACEITOS.forEach(function(nome){
-            if(typeof BF[nome] !== 'undefined'){ formatos.push(BF[nome]); }
-          });
-          if(formatos.length > 0){ codeReader.possibleFormats = formatos; }
-        }
-      }catch(e){}
     }
     return codeReader;
   }
 
   function restricoesVideo(deviceId){
     var restricoes = {
-      width: { ideal: 1280 },
-      height: { ideal: 720 }
+      // Mais pixels por barra = leitura de códigos menores ou mais densos.
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+      // Foco contínuo: sem isso muitos celulares travam o foco no infinito
+      // e a etiqueta chega borrada ao decodificador. Ignorado em silêncio
+      // pelos navegadores que não suportam.
+      advanced: [{ focusMode: 'continuous' }]
     };
     if(deviceId){
       restricoes.deviceId = { exact: deviceId };
@@ -470,6 +529,42 @@
       restricoesVideo(deviceId), video, aoDecodificar
     );
     streamAtivo = true;
+    iniciarVarreduraGirada();
+  }
+
+  // ---------- Varredura do quadro girado (códigos na vertical) ----------
+  function iniciarVarreduraGirada(){
+    if(!LEITURA_GIRADA) return;
+    pararVarreduraGirada();
+    if(!canvasGirado){ canvasGirado = document.createElement('canvas'); }
+    timerGirado = setInterval(varrerGirado, INTERVALO_GIRADO_MS);
+  }
+
+  function pararVarreduraGirada(){
+    if(timerGirado){ clearInterval(timerGirado); timerGirado = null; }
+  }
+
+  function varrerGirado(){
+    if(!streamAtivo || document.hidden) return;
+    var l = video.videoWidth, a = video.videoHeight;
+    if(!l || !a) return;
+    try{
+      // Dimensões trocadas: o quadro deitado vira quadro em pé.
+      if(canvasGirado.width !== a || canvasGirado.height !== l){
+        canvasGirado.width = a;
+        canvasGirado.height = l;
+      }
+      var ctx = canvasGirado.getContext('2d');
+      ctx.save();
+      ctx.translate(a / 2, l / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.drawImage(video, -l / 2, -a / 2);
+      ctx.restore();
+      var resultado = obterLeitor().decodeFromCanvas(canvasGirado);
+      if(resultado){ tratarResultadoLido(resultado); }
+    }catch(e){
+      // NotFoundException a cada quadro sem código: normal, ignorado.
+    }
   }
 
   async function iniciarCamera(){
@@ -542,8 +637,18 @@
       var faixa = faixaVideoAtiva();
       label = (faixa && faixa.label) ? faixa.label : 'Câmera ativa';
     }
+    // A resolução real ajuda a diagnosticar leitura ruim em campo.
+    if(video.videoWidth){ label += ' · ' + video.videoWidth + '×' + video.videoHeight; }
     camBadgeTexto.textContent = label;
     camBadge.classList.add('show');
+  }
+
+  // Faz a moldura acompanhar a proporção real do vídeo, para que a área
+  // visível seja idêntica à área analisada.
+  function ajustarProporcaoVideo(){
+    if(video.videoWidth && video.videoHeight){
+      videoWrap.style.aspectRatio = video.videoWidth + ' / ' + video.videoHeight;
+    }
   }
 
   // ---------- Lanterna ----------
@@ -692,6 +797,7 @@
 
   // ---------- Parar ----------
   function pararScannerSomente(){
+    pararVarreduraGirada();
     try{
       if(controlesScanner && typeof controlesScanner.stop === 'function'){
         controlesScanner.stop();
@@ -844,6 +950,14 @@
   btnCopiarTodos.addEventListener('click', copiarTodos);
   btnLimparHistorico.addEventListener('click', limparHistorico);
   toggleHistorico.addEventListener('click', alternarHistorico);
+
+  // Assim que o vídeo informa suas dimensões reais, ajusta a moldura e o
+  // rótulo — cobre tanto a abertura inicial quanto a troca de câmera.
+  video.addEventListener('loadedmetadata', function(){
+    ajustarProporcaoVideo();
+    if(streamAtivo){ atualizarBadgeCamera(); }
+  });
+  video.addEventListener('resize', ajustarProporcaoVideo);
 
   // pagehide é mais confiável que beforeunload em navegadores móveis.
   window.addEventListener('pagehide', function(){ pararScannerSomente(); liberarWakeLock(); });
