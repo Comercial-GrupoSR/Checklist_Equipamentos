@@ -124,6 +124,14 @@
   .btn-torch{ background:var(--gray-light); color:var(--text); }
   .btn-torch.ativo{ background:var(--amber); color:#fff; }
   .btn-menor{ font-size:14px; padding:11px 12px; }
+  .btn-foto{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-family:inherit; font-size:16px; font-weight:600;
+    border-radius:14px; padding:14px 16px; width:100%;
+    background:var(--gray-light); color:var(--text); cursor:pointer;
+    -webkit-user-select:none; user-select:none;
+  }
+  .btn-foto:active{ transform:scale(0.97); }
   .resultado{ display:none; padding:16px; animation: fadein 0.25s ease; }
   .resultado.show{ display:block; }
   @keyframes fadein{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
@@ -201,6 +209,8 @@
 
   <div class="botoes">
     <button class="btn-primary" id="btnIniciar" disabled>📷 Abrir câmera</button>
+    <label class="btn-foto" for="arquivoLeitura" id="rotuloFoto">📸 Ler por foto</label>
+    <input type="file" id="arquivoLeitura" accept="image/*" capture="environment" hidden>
     <div class="linha-botoes" id="controlesAtivos" style="display:none;">
       <button class="btn-torch btn-menor" id="btnLanterna" style="display:none;">🔦 Lanterna</button>
       <button class="btn-secondary btn-menor" id="btnTrocar" style="display:none;">🔄 Trocar câmera</button>
@@ -328,7 +338,7 @@
   // celular. Cache de navegador é a causa mais comum de "a correção não
   // funcionou" — se aqui não aparecer a versão esperada, o aparelho está
   // com a versão antiga em cache.
-  var VERSAO = 'v5 · 20/08/2026 · offline';
+  var VERSAO = 'v6 · 20/08/2026 · offline + foto';
 
   /* ====================================================================== */
 
@@ -382,6 +392,7 @@
   var diagTexto = document.getElementById('diagTexto');
   var diagResultadoFoto = document.getElementById('diagResultadoFoto');
   var arquivoFoto = document.getElementById('arquivoFoto');
+  var arquivoLeitura = document.getElementById('arquivoLeitura');
   var btnCopiarDiag = document.getElementById('btnCopiarDiag');
   var rodapeVersao = document.getElementById('rodapeVersao');
 
@@ -587,33 +598,20 @@
     var url = URL.createObjectURL(arquivo);
     var img = new Image();
     img.onload = function(){
-      var tentativas = [
-        ['imagem original', 0, 1],
-        ['girada 90°', 90, 1],
-        ['girada -90°', -90, 1],
-        ['girada 180°', 180, 1],
-        ['ampliada 2x', 0, 2],
-        ['ampliada 2x e girada 90°', 90, 2]
-      ];
-      var achou = null, testadas = 0;
-      for(var i = 0; i < tentativas.length && !achou; i++){
-        var r = decodificarImagem(img, tentativas[i][1], tentativas[i][2]);
-        testadas++;
-        if(r){ achou = { texto: r.getText(), formato: nomeDoFormato(r), como: tentativas[i][0] }; }
-      }
+      var achou = tentarTodasOrientacoes(img);
       URL.revokeObjectURL(url);
       if(achou){
         diagResultadoFoto.innerHTML =
-          '<span class="ok">✅ LEU: ' + escapar(achou.texto) + '</span><br>' +
-          'formato: ' + escapar(achou.formato) + '<br>' +
+          '<span class="ok">✅ LEU: ' + escapar(achou.resultado.getText()) + '</span><br>' +
+          'formato: ' + escapar(nomeDoFormato(achou.resultado)) + '<br>' +
           'como: ' + escapar(achou.como) + '<br>' +
           'foto: ' + img.width + '×' + img.height + '<br>' +
           '<em>A etiqueta é legível. O problema está na captura ao vivo: ' +
           'aproxime até a etiqueta ocupar a largura da tela, segure firme 1 segundo e evite sombra.</em>';
-        tratarResultadoLido({ getText: function(){ return achou.texto; }, getBarcodeFormat: function(){ return achou.formato; } });
+        tratarResultadoLido(achou.resultado);
       }else{
         diagResultadoFoto.innerHTML =
-          '<span class="nao">❌ Não decodificou em nenhuma das ' + testadas + ' tentativas</span><br>' +
+          '<span class="nao">❌ Não decodificou em nenhuma das ' + ORIENTACOES.length + ' tentativas</span><br>' +
           'foto: ' + img.width + '×' + img.height + '<br>' +
           '<em>Se a foto está nítida e mesmo assim não lê, o problema é a própria ' +
           'etiqueta (barras finas demais ou impressão falhada), não o aplicativo.</em>';
@@ -625,6 +623,53 @@
       diagResultadoFoto.innerHTML = '<span class="nao">Não foi possível abrir a imagem.</span>';
     };
     img.src = url;
+  }
+
+  // Leitura por FOTO, usando a câmera nativa do celular.
+  //
+  // A câmera nativa foca melhor, tem resolução muito maior e não sofre com
+  // tremida como o vídeo ao vivo. Para quem bipa etiquetas de vez em quando
+  // — que é o caso do supervisor de montagem — costuma ser mais confiável
+  // do que a varredura contínua.
+  function lerPorFoto(arquivo){
+    if(!arquivo) return;
+    mostrarMensagem('Analisando a foto…', 'info');
+    var url = URL.createObjectURL(arquivo);
+    var img = new Image();
+    img.onload = function(){
+      var achou = tentarTodasOrientacoes(img);
+      URL.revokeObjectURL(url);
+      if(achou){
+        limparMensagem();
+        tratarResultadoLido(achou.resultado);
+      }else{
+        mostrarMensagem('Não encontrei código nessa foto (' + img.width + '×' + img.height + '). ' +
+          'Chegue mais perto, deixe a etiqueta ocupar boa parte do quadro, evite sombra e ' +
+          'toque na tela para focar antes de fotografar.', 'aviso');
+      }
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      mostrarMensagem('Não consegui abrir essa imagem.', 'erro');
+    };
+    img.src = url;
+  }
+
+  var ORIENTACOES = [
+    ['imagem original', 0, 1],
+    ['girada 90°', 90, 1],
+    ['girada -90°', -90, 1],
+    ['girada 180°', 180, 1],
+    ['ampliada 2x', 0, 2],
+    ['ampliada 2x e girada 90°', 90, 2]
+  ];
+
+  function tentarTodasOrientacoes(img){
+    for(var i = 0; i < ORIENTACOES.length; i++){
+      var r = decodificarImagem(img, ORIENTACOES[i][1], ORIENTACOES[i][2]);
+      if(r){ return { resultado: r, como: ORIENTACOES[i][0], tentativas: i + 1 }; }
+    }
+    return null;
   }
 
   function decodificarImagem(img, graus, escala){
@@ -1094,6 +1139,10 @@
     }else if(timerDiag){
       clearInterval(timerDiag); timerDiag = null;
     }
+  });
+  arquivoLeitura.addEventListener('change', function(){
+    lerPorFoto(this.files && this.files[0]);
+    this.value = '';
   });
   arquivoFoto.addEventListener('change', function(){
     testarComFoto(this.files && this.files[0]);
