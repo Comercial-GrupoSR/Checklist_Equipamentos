@@ -360,7 +360,7 @@
   <span class="visually-hidden" id="liveRegion" aria-live="polite"></span>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@latest/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/browser@latest" id="zxingScript"></script>
 <script>
 (function(){
   "use strict";
@@ -408,7 +408,9 @@
   }
 
   // ---------- Verificação de suporte ----------
-  function verificarSuporte(){
+  let zxingFalhouCarregar = false;
+
+  function verificarRequisitosBasicos(){
     const problemas = [];
 
     const seguro = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -420,8 +422,31 @@
       problemas.push('Seu navegador não tem suporte a acesso à câmera (getUserMedia).');
     }
 
+    return problemas;
+  }
+
+  // Aguarda a lib ZXing ficar disponível, tentando por até ~8s
+  // (em vez de checar uma única vez logo após o load, o que falhava
+  // em conexões mais lentas mesmo com a lib carregando normalmente).
+  function aguardarZXing(tentativasRestantes){
+    if(typeof ZXingBrowser !== 'undefined'){
+      finalizarVerificacao();
+      return;
+    }
+    if(zxingFalhouCarregar || tentativasRestantes <= 0){
+      finalizarVerificacao();
+      return;
+    }
+    setTimeout(function(){
+      aguardarZXing(tentativasRestantes - 1);
+    }, 250);
+  }
+
+  function finalizarVerificacao(){
+    const problemas = verificarRequisitosBasicos();
+
     if(typeof ZXingBrowser === 'undefined'){
-      problemas.push('Não foi possível carregar a biblioteca de leitura de código de barras (ZXing). Verifique sua conexão com a internet.');
+      problemas.push('Não foi possível carregar a biblioteca de leitura de código de barras (ZXing). Verifique sua conexão com a internet e recarregue a página.');
     }
 
     if(problemas.length > 0){
@@ -429,8 +454,34 @@
       btnIniciar.disabled = true;
       return false;
     }
+    limparMensagem();
+    btnIniciar.disabled = false;
     return true;
   }
+
+  function verificarSuporte(){
+    // Checagem inicial rápida dos requisitos que não dependem de rede
+    const problemasBasicos = verificarRequisitosBasicos();
+    if(problemasBasicos.length > 0 && typeof ZXingBrowser === 'undefined'){
+      // mostra mensagem básica enquanto aguarda a lib, sem travar o botão ainda
+      mostrarMensagem('⚠️ ' + problemasBasicos.join(' '), 'erro');
+    }
+    // aguarda até ~8s (32 tentativas x 250ms) para o ZXing carregar
+    aguardarZXing(32);
+  }
+
+  document.getElementById('zxingScript').addEventListener('error', function(){
+    // Se o unpkg falhar, tenta uma vez o jsDelivr como alternativa antes de desistir
+    if(!zxingFalhouCarregar){
+      zxingFalhouCarregar = true;
+      const scriptAlternativo = document.createElement('script');
+      scriptAlternativo.src = 'https://cdn.jsdelivr.net/npm/@zxing/browser@latest/umd/index.min.js';
+      scriptAlternativo.addEventListener('load', function(){
+        zxingFalhouCarregar = false;
+      });
+      document.head.appendChild(scriptAlternativo);
+    }
+  });
 
   // ---------- Áudio: beep ----------
   function emitirSom(){
@@ -773,8 +824,7 @@
 
   // ---------- Inicialização ----------
   window.addEventListener('load', function(){
-    // dá um tempo curto para o script do ZXing (via CDN) terminar de carregar
-    setTimeout(verificarSuporte, 300);
+    verificarSuporte();
   });
 
 })();
