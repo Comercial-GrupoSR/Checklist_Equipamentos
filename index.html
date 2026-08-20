@@ -1,1698 +1,776 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>📷 Leitor de Código de Barras</title>
+<style>
+  :root{
+    --bg:#f2f2f7;
+    --card:#ffffff;
+    --blue:#007aff;
+    --blue-dark:#0060cc;
+    --green:#34c759;
+    --red:#ff3b30;
+    --gray:#8e8e93;
+    --gray-light:#e5e5ea;
+    --text:#1c1c1e;
+    --text-secondary:#6e6e73;
+    --radius:16px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    padding: calc(12px + var(--safe-top)) 12px calc(16px + var(--safe-bottom));
+    gap:14px;
+  }
+  header{
+    text-align:center;
+    padding:6px 0 2px;
+  }
+  header h1{
+    font-size:20px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:-0.3px;
+  }
+  header p{
+    margin:4px 0 0;
+    font-size:13px;
+    color:var(--text-secondary);
+  }
 
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    overflow:hidden;
+  }
 
-  <title>Leitor de Código de Barras</title>
+  /* Área de vídeo */
+  .video-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio: 3 / 4;
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  #video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:none;
+  }
+  .placeholder{
+    color:#8e8e93;
+    text-align:center;
+    padding:24px;
+    font-size:14px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:10px;
+  }
+  .placeholder .icon{
+    font-size:48px;
+    opacity:0.6;
+  }
 
-  <style>
+  .scan-overlay{
+    position:absolute;
+    inset:0;
+    display:none;
+    pointer-events:none;
+  }
+  .scan-frame{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:38%;
+    height:24%;
+    border:2px solid rgba(255,255,255,0.85);
+    border-radius:14px;
+    box-shadow:0 0 0 999px rgba(0,0,0,0.28);
+  }
+  .scan-line{
+    position:absolute;
+    left:8%;
+    right:8%;
+    top:50%;
+    height:2px;
+    background:linear-gradient(90deg, transparent, #ff3b30 15%, #ff3b30 85%, transparent);
+    box-shadow:0 0 8px rgba(255,59,48,0.8);
+    animation: scanmove 1.8s ease-in-out infinite;
+  }
+  @keyframes scanmove{
+    0%{ top:39%; }
+    50%{ top:61%; }
+    100%{ top:39%; }
+  }
+  .corner{
+    position:absolute;
+    width:22px; height:22px;
+    border-color:#fff;
+    border-style:solid;
+    border-width:0;
+  }
+  .tl{ left:8%; top:38%; border-left-width:3px; border-top-width:3px; border-top-left-radius:10px;}
+  .tr{ right:8%; top:38%; border-right-width:3px; border-top-width:3px; border-top-right-radius:10px;}
+  .bl{ left:8%; top:calc(38% + 24% - 22px); border-left-width:3px; border-bottom-width:3px; border-bottom-left-radius:10px;}
+  .br{ right:8%; top:calc(38% + 24% - 22px); border-right-width:3px; border-bottom-width:3px; border-bottom-right-radius:10px;}
 
-    * {
-      box-sizing: border-box;
-    }
+  .cam-badge{
+    position:absolute;
+    top:10px; left:10px;
+    background:rgba(0,0,0,0.55);
+    color:#fff;
+    font-size:11px;
+    padding:5px 10px;
+    border-radius:20px;
+    display:none;
+    align-items:center;
+    gap:5px;
+  }
+  .cam-badge.show{ display:flex; }
+  .dot{
+    width:7px; height:7px;
+    border-radius:50%;
+    background:#34c759;
+    animation:pulse 1.4s infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;}
+    50%{opacity:0.3;}
+  }
 
-    body {
-      margin: 0;
-      padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont,
-                   "Segoe UI", sans-serif;
-      background: #f2f2f7;
-      color: #111;
-    }
+  /* Mensagens */
+  #mensagem{
+    display:none;
+    padding:12px 14px;
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.4;
+  }
+  #mensagem.erro{
+    display:block;
+    background:#fff1f0;
+    color:#c0261a;
+    border:1px solid #ffd4d1;
+  }
+  #mensagem.aviso{
+    display:block;
+    background:#fff8e6;
+    color:#8a6100;
+    border:1px solid #ffe6a8;
+  }
+  #mensagem.info{
+    display:block;
+    background:#eaf3ff;
+    color:#0057b8;
+    border:1px solid #cfe4ff;
+  }
 
-    .container {
-      max-width: 600px;
-      margin: auto;
-    }
+  /* Botões */
+  .botoes{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .linha-botoes{
+    display:flex;
+    gap:10px;
+  }
+  button{
+    font-family:inherit;
+    font-size:16px;
+    font-weight:600;
+    border:none;
+    border-radius:14px;
+    padding:14px 16px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:transform 0.08s ease, opacity 0.15s ease, background 0.15s ease;
+    -webkit-user-select:none;
+    user-select:none;
+    width:100%;
+  }
+  button:active{ transform:scale(0.97); }
+  button:disabled{ opacity:0.45; cursor:not-allowed; transform:none; }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 5px;
-    }
+  .btn-primary{ background:var(--blue); color:#fff; }
+  .btn-primary:active:not(:disabled){ background:var(--blue-dark); }
 
-    .subtitulo {
-      text-align: center;
-      color: #666;
-      margin-bottom: 20px;
-    }
+  .btn-stop{ background:var(--red); color:#fff; }
 
-    .camera {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      background: #000;
-      border-radius: 18px;
-      overflow: hidden;
-    }
+  .btn-secondary{ background:var(--gray-light); color:var(--text); }
 
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
+  .btn-copy{ background:var(--green); color:#fff; }
 
-    .mira {
-      position: absolute;
-      left: 8%;
-      right: 8%;
-      top: 45%;
-      height: 3px;
-      background: red;
-      box-shadow: 0 0 10px red;
-      pointer-events: none;
-    }
+  /* Resultado */
+  .resultado{
+    display:none;
+    padding:16px;
+    animation: fadein 0.25s ease;
+  }
+  .resultado.show{ display:block; }
+  @keyframes fadein{
+    from{ opacity:0; transform:translateY(6px);}
+    to{ opacity:1; transform:translateY(0);}
+  }
+  .resultado .rotulo{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    color:var(--text-secondary);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .resultado .valor{
+    font-size:22px;
+    font-weight:700;
+    word-break:break-all;
+    margin-bottom:10px;
+    letter-spacing:-0.2px;
+  }
+  .badge-formato{
+    display:inline-block;
+    background:#eef2ff;
+    color:#3b4ed6;
+    font-size:12px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:20px;
+    margin-bottom:14px;
+  }
+  .historico-toggle{
+    font-size:13px;
+    color:var(--blue);
+    font-weight:600;
+    text-align:center;
+    padding:6px 0 0;
+    cursor:pointer;
+  }
+  #historico{
+    display:none;
+    padding:0 16px 16px;
+  }
+  #historico.show{ display:block; }
+  .historico-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-top:1px solid var(--gray-light);
+    font-size:13px;
+    gap:10px;
+  }
+  .historico-item .h-valor{
+    font-weight:600;
+    word-break:break-all;
+    flex:1;
+  }
+  .historico-item .h-formato{
+    color:var(--text-secondary);
+    font-size:11px;
+    white-space:nowrap;
+  }
 
-    .foco-toque {
-      position: absolute;
-      width: 70px;
-      height: 70px;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      pointer-events: none;
-      transform: translate(-50%, -50%) scale(1.3);
-      opacity: 0;
-      transition: transform .3s ease, opacity .3s ease;
-    }
+  footer{
+    text-align:center;
+    font-size:11px;
+    color:var(--gray);
+    padding:6px 0 0;
+  }
 
-    .foco-toque.ativo {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    .area-botoes {
-      display: flex;
-      gap: 10px;
-    }
-
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 12px;
-      font-size: 17px;
-      font-weight: bold;
-      color: white;
-      background: #007aff;
-      cursor: pointer;
-    }
-
-    button:active {
-      opacity: 0.7;
-    }
-
-    #parar {
-      background: #ff3b30;
-    }
-
-    #trocar {
-      background: #5856d6;
-    }
-
-    #copiar {
-      background: #34c759;
-    }
-
-    .resultado {
-      background: white;
-      border-radius: 15px;
-      padding: 20px;
-      margin-top: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,.1);
-    }
-
-    .numero {
-      font-size: 28px;
-      font-weight: bold;
-      color: #007aff;
-      word-break: break-all;
-      margin-top: 10px;
-    }
-
-    .tipo {
-      color: #666;
-      margin-top: 8px;
-    }
-
-    .mensagem {
-      margin-top: 15px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #fff3cd;
-      color: #664d03;
-    }
-
-    .erro {
-      background: #ffebee;
-      color: #b00020;
-    }
-
-    .sucesso {
-      background: #e8f5e9;
-      color: #1b5e20;
-    }
-
-    .oculto {
-      display: none;
-    }
-
-    .camera-info {
-      text-align: center;
-      color: #666;
-      font-size: 13px;
-      margin-top: 8px;
-    }
-
-    .dica-foco {
-      text-align: center;
-      color: #007aff;
-      font-size: 13px;
-      margin-top: 4px;
-    }
-
-  </style>
+  .visually-hidden{
+    position:absolute;
+    width:1px;height:1px;
+    overflow:hidden;
+    clip:rect(0 0 0 0);
+  }
+</style>
 </head>
-
 <body>
+<div id="app">
 
-<div class="container">
+  <header>
+    <h1>📷 Leitor de Código de Barras</h1>
+    <p>Aponte a câmera para o código e aguarde a leitura</p>
+  </header>
 
-  <h1>📷 Leitor de Código</h1>
+  <div id="mensagem"></div>
 
-  <p class="subtitulo">
-    Aponte a câmera para o código de barras
-  </p>
-
-
-  <!-- CÂMERA -->
-
-  <div class="camera" id="areaCamera">
-
-    <video
-      id="video"
-      autoplay
-      muted
-      playsinline
-      webkit-playsinline>
-    </video>
-
-    <div class="mira"></div>
-
-    <div class="foco-toque" id="focoToque"></div>
-
-  </div>
-
-
-  <div id="cameraInfo" class="camera-info">
-    Câmera não iniciada
-  </div>
-
-  <div class="dica-foco" id="dicaFoco"></div>
-
-
-  <!-- BOTÕES -->
-
-  <button id="iniciar">
-    📷 Abrir câmera
-  </button>
-
-
-  <div class="area-botoes">
-
-    <button id="trocar" class="oculto">
-      🔄 Trocar câmera
-    </button>
-
-    <button id="parar" class="oculto">
-      ⏹ Parar
-    </button>
-
-  </div>
-
-
-  <!-- MENSAGEM -->
-
-  <div
-    id="mensagem"
-    class="mensagem oculto">
-  </div>
-
-
-  <!-- RESULTADO -->
-
-  <div
-    id="resultado"
-    class="resultado oculto">
-
-    <strong>Número encontrado:</strong>
-
-    <div
-      id="numero"
-      class="numero">
+  <div class="card">
+    <div class="video-wrap">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="placeholder" id="placeholder">
+        <div class="icon">📷</div>
+        <div>A câmera aparecerá aqui</div>
+      </div>
+      <div class="scan-overlay" id="scanOverlay">
+        <div class="scan-frame"></div>
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="scan-line"></div>
+      </div>
+      <div class="cam-badge" id="camBadge"><span class="dot"></span><span id="camBadgeTexto">Câmera ativa</span></div>
     </div>
-
-    <div
-      id="tipo"
-      class="tipo">
-    </div>
-
-
-    <button id="copiar">
-      📋 Copiar número
-    </button>
-
   </div>
 
+  <div class="botoes">
+    <button class="btn-primary" id="btnIniciar">📷 Abrir câmera</button>
+    <div class="linha-botoes" id="controlesAtivos" style="display:none;">
+      <button class="btn-secondary" id="btnTrocar">🔄 Trocar câmera</button>
+      <button class="btn-stop" id="btnParar">⏹ Parar</button>
+    </div>
+  </div>
+
+  <div class="card resultado" id="resultadoCard">
+    <div class="rotulo">Código detectado</div>
+    <div class="valor" id="valorLido">—</div>
+    <div class="badge-formato" id="formatoLido">—</div>
+    <button class="btn-copy" id="btnCopiar">📋 Copiar número</button>
+    <div class="historico-toggle" id="toggleHistorico">Ver histórico (0)</div>
+  </div>
+  <div class="card" id="historico"></div>
+
+  <footer>Processamento 100% local no navegador · via ZXing</footer>
+
+  <span class="visually-hidden" id="liveRegion" aria-live="polite"></span>
 </div>
 
-
-<!--
-==================================================
-ZXING
-==================================================
--->
-
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
-
-
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@latest/umd/index.min.js"></script>
 <script>
+(function(){
+  "use strict";
 
-"use strict";
+  // ---------- Estado ----------
+  let codeReader = null;
+  let listaCameras = [];
+  let indiceCameraAtual = 0;
+  let streamAtivo = false;
+  let ultimoCodigo = null;
+  let ultimoTimestamp = 0;
+  const INTERVALO_DUPLICADA_MS = 3000;
+  let historicoLeituras = [];
+  let audioCtx = null;
 
+  // ---------- Elementos ----------
+  const video = document.getElementById('video');
+  const placeholder = document.getElementById('placeholder');
+  const scanOverlay = document.getElementById('scanOverlay');
+  const camBadge = document.getElementById('camBadge');
+  const camBadgeTexto = document.getElementById('camBadgeTexto');
+  const mensagemEl = document.getElementById('mensagem');
+  const btnIniciar = document.getElementById('btnIniciar');
+  const controlesAtivos = document.getElementById('controlesAtivos');
+  const btnTrocar = document.getElementById('btnTrocar');
+  const btnParar = document.getElementById('btnParar');
+  const resultadoCard = document.getElementById('resultadoCard');
+  const valorLido = document.getElementById('valorLido');
+  const formatoLido = document.getElementById('formatoLido');
+  const btnCopiar = document.getElementById('btnCopiar');
+  const toggleHistorico = document.getElementById('toggleHistorico');
+  const historicoEl = document.getElementById('historico');
+  const liveRegion = document.getElementById('liveRegion');
 
-/*
-==================================================
-ELEMENTOS
-==================================================
-*/
-
-const video =
-  document.getElementById("video");
-
-const areaCamera =
-  document.getElementById("areaCamera");
-
-const iniciar =
-  document.getElementById("iniciar");
-
-const parar =
-  document.getElementById("parar");
-
-const trocar =
-  document.getElementById("trocar");
-
-const mensagem =
-  document.getElementById("mensagem");
-
-const resultado =
-  document.getElementById("resultado");
-
-const numero =
-  document.getElementById("numero");
-
-const tipo =
-  document.getElementById("tipo");
-
-const copiar =
-  document.getElementById("copiar");
-
-const cameraInfo =
-  document.getElementById("cameraInfo");
-
-const focoToque =
-  document.getElementById("focoToque");
-
-const dicaFoco =
-  document.getElementById("dicaFoco");
-
-
-/*
-==================================================
-VARIÁVEIS
-==================================================
-*/
-
-let stream = null;
-
-let leitor = null;
-
-let controles = null;
-
-let cameras = [];
-
-let cameraAtual = 0;
-
-let ultimoCodigo = "";
-
-let ultimaLeitura = 0;
-
-let trackAtual = null;
-
-
-/*
-==================================================
-MENSAGEM
-==================================================
-*/
-
-function mostrarMensagem(texto, tipoMensagem = "normal") {
-
-  mensagem.textContent = texto;
-
-  mensagem.classList.remove(
-    "oculto",
-    "erro",
-    "sucesso"
-  );
-
-  if (tipoMensagem === "erro") {
-
-    mensagem.classList.add("erro");
-
+  // ---------- Utilidades de mensagem ----------
+  function mostrarMensagem(texto, tipo){
+    // tipo: 'erro' | 'aviso' | 'info'
+    mensagemEl.textContent = texto;
+    mensagemEl.className = tipo || 'info';
+    liveRegion.textContent = texto;
+  }
+  function limparMensagem(){
+    mensagemEl.textContent = '';
+    mensagemEl.className = '';
   }
 
-  else if (tipoMensagem === "sucesso") {
+  // ---------- Verificação de suporte ----------
+  function verificarSuporte(){
+    const problemas = [];
 
-    mensagem.classList.add("sucesso");
+    const seguro = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if(!seguro){
+      problemas.push('Este site precisa ser acessado via HTTPS (ou localhost) para liberar o uso da câmera.');
+    }
 
-  }
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+      problemas.push('Seu navegador não tem suporte a acesso à câmera (getUserMedia).');
+    }
 
-}
+    if(typeof ZXingBrowser === 'undefined'){
+      problemas.push('Não foi possível carregar a biblioteca de leitura de código de barras (ZXing). Verifique sua conexão com a internet.');
+    }
 
-
-/*
-==================================================
-OCULTAR MENSAGEM
-==================================================
-*/
-
-function ocultarMensagem() {
-
-  mensagem.classList.add("oculto");
-
-}
-
-
-/*
-==================================================
-VERIFICAR SUPORTE
-==================================================
-*/
-
-function verificarSuporte() {
-
-  if (!window.isSecureContext) {
-
-    mostrarMensagem(
-      "⚠️ O site precisa estar aberto em HTTPS. " +
-      "Verifique se está acessando pelo GitHub Pages.",
-      "erro"
-    );
-
-    return false;
-  }
-
-
-  if (
-    !navigator.mediaDevices ||
-    !navigator.mediaDevices.getUserMedia
-  ) {
-
-    mostrarMensagem(
-      "❌ Este navegador não permite acesso à câmera.",
-      "erro"
-    );
-
-    return false;
-  }
-
-
-  if (
-    typeof ZXingBrowser === "undefined"
-  ) {
-
-    mostrarMensagem(
-      "❌ A biblioteca de leitura não foi carregada.",
-      "erro"
-    );
-
-    return false;
-  }
-
-
-  return true;
-
-}
-
-
-/*
-==================================================
-OBTER CÂMERAS
-==================================================
-*/
-
-async function obterCameras() {
-
-  try {
-
-    cameras =
-      await ZXingBrowser.BrowserCodeReader
-        .listVideoInputDevices();
-
-
-    if (!cameras || cameras.length === 0) {
-
-      mostrarMensagem(
-        "❌ Nenhuma câmera foi encontrada.",
-        "erro"
-      );
-
+    if(problemas.length > 0){
+      mostrarMensagem('⚠️ ' + problemas.join(' '), 'erro');
+      btnIniciar.disabled = true;
       return false;
     }
-
-
-    console.log(
-      "Câmeras encontradas:",
-      cameras
-    );
-
-
-    /*
-    Procura câmera traseira
-    */
-
-    const indiceTraseira =
-      cameras.findIndex(camera => {
-
-        const nome =
-          (camera.label || "").toLowerCase();
-
-        return (
-          nome.includes("back") ||
-          nome.includes("rear") ||
-          nome.includes("environment") ||
-          nome.includes("traseira") ||
-          nome.includes("posterior")
-        );
-
-      });
-
-
-    if (indiceTraseira >= 0) {
-
-      cameraAtual =
-        indiceTraseira;
-
-    }
-
-    else {
-
-      cameraAtual = 0;
-
-    }
-
-
     return true;
-
   }
 
-  catch (erro) {
-
-    console.error(
-      "Erro ao obter câmeras:",
-      erro
-    );
-
-    mostrarMensagem(
-      "❌ Não foi possível identificar as câmeras.",
-      "erro"
-    );
-
-    return false;
-
+  // ---------- Áudio: beep ----------
+  function emitirSom(){
+    try{
+      if(!audioCtx){
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if(audioCtx.state === 'suspended'){
+        audioCtx.resume();
+      }
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 1000;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.16);
+    }catch(e){
+      // silenciosamente ignora falha de áudio
+      console.warn('Não foi possível emitir som:', e);
+    }
   }
 
-}
-
-
-/*
-==================================================
-CRIAR HINTS DE FORMATO
-==================================================
-
-Por padrão o ZXing NÃO tenta decodificar
-alguns formatos (como ITF - Interleaved 2 of 5)
-para evitar falsos positivos.
-
-Códigos gerados por ERPs (como o Focco) e
-boletos costumam usar ITF ou Code 128,
-então habilitamos explicitamente todos os
-formatos relevantes de código de barras 1D.
-*/
-
-function criarHints() {
-
-  try {
-
-    const hints = new Map();
-
-    const formatos = [
-
-      ZXing.BarcodeFormat.CODE_128,
-
-      ZXing.BarcodeFormat.CODE_39,
-
-      ZXing.BarcodeFormat.CODE_93,
-
-      ZXing.BarcodeFormat.CODABAR,
-
-      ZXing.BarcodeFormat.ITF,
-
-      ZXing.BarcodeFormat.EAN_13,
-
-      ZXing.BarcodeFormat.EAN_8,
-
-      ZXing.BarcodeFormat.UPC_A,
-
-      ZXing.BarcodeFormat.UPC_E,
-
-      ZXing.BarcodeFormat.QR_CODE,
-
-      ZXing.BarcodeFormat.DATA_MATRIX,
-
-      ZXing.BarcodeFormat.PDF_417
-
-    ];
-
-    hints.set(
-      ZXing.DecodeHintType.POSSIBLE_FORMATS,
-      formatos
-    );
-
-    /*
-    Tenta mais forte, mais devagar,
-    mas mais confiável para códigos
-    difíceis de ler.
-    */
-
-    hints.set(
-      ZXing.DecodeHintType.TRY_HARDER,
-      true
-    );
-
-    return hints;
-
+  function vibrar(){
+    if(navigator.vibrate){
+      try{ navigator.vibrate(120); }catch(e){}
+    }
   }
 
-  catch (erro) {
+  // ---------- Câmeras ----------
+  async function obterCameras(){
+    const dispositivos = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    listaCameras = dispositivos || [];
 
-    console.warn(
-      "Não foi possível criar hints de formato:",
-      erro
-    );
-
-    return undefined;
-
-  }
-
-}
-
-
-/*
-==================================================
-APLICAR FOCO CONTÍNUO / RESOLUÇÃO
-==================================================
-*/
-
-async function aplicarConfiguracoesAvancadas(track) {
-
-  if (!track) {
-    return;
-  }
-
-  try {
-
-    const capacidades =
-      track.getCapabilities
-        ? track.getCapabilities()
-        : {};
-
-    const constraintsAvancadas = {};
-
-    /*
-    Foco contínuo, se suportado.
-    Muito importante para leitura
-    de código de barras de perto.
-    */
-
-    if (
-      capacidades.focusMode &&
-      capacidades.focusMode.includes("continuous")
-    ) {
-
-      constraintsAvancadas.focusMode =
-        "continuous";
-
-      dicaFoco.textContent =
-        "🔎 Foco automático contínuo ativado";
-
+    if(listaCameras.length === 0){
+      throw new Error('SemCamera');
     }
 
-    else {
+    // tenta identificar câmera traseira pelo label
+    let indiceTraseira = listaCameras.findIndex(function(d){
+      const label = (d.label || '').toLowerCase();
+      return label.includes('back') || label.includes('traseira') ||
+             label.includes('rear') || label.includes('environment');
+    });
 
-      dicaFoco.textContent =
-        "💡 Toque na imagem da câmera para focar";
-
+    if(indiceTraseira === -1 && listaCameras.length > 1){
+      // heurística: em mobile, a última câmera listada costuma ser a traseira
+      indiceTraseira = listaCameras.length - 1;
     }
 
-
-    /*
-    Zoom leve pode ajudar em
-    códigos pequenos, mas deixamos
-    o padrão do dispositivo.
-    */
-
-    if (Object.keys(constraintsAvancadas).length > 0) {
-
-      await track.applyConstraints({
-        advanced: [constraintsAvancadas]
-      });
-
-    }
-
+    indiceCameraAtual = indiceTraseira !== -1 ? indiceTraseira : 0;
+    return listaCameras;
   }
 
-  catch (erro) {
-
-    console.warn(
-      "Não foi possível aplicar foco contínuo:",
-      erro
-    );
-
-    dicaFoco.textContent =
-      "💡 Toque na imagem da câmera para focar";
-
-  }
-
-}
-
-
-/*
-==================================================
-TOQUE PARA FOCAR (iOS/Android)
-==================================================
-*/
-
-areaCamera.addEventListener(
-  "click",
-  async function(evento) {
-
-    if (!trackAtual) {
+  function atualizarBadgeCamera(){
+    if(listaCameras.length === 0){
+      camBadge.classList.remove('show');
       return;
     }
-
-
-    /*
-    Mostra o círculo de foco
-    na posição tocada.
-    */
-
-    const rect =
-      areaCamera.getBoundingClientRect();
-
-    const x =
-      evento.clientX - rect.left;
-
-    const y =
-      evento.clientY - rect.top;
-
-    focoToque.style.left = x + "px";
-    focoToque.style.top = y + "px";
-
-    focoToque.classList.add("ativo");
-
-    setTimeout(function() {
-      focoToque.classList.remove("ativo");
-    }, 500);
-
-
-    try {
-
-      const capacidades =
-        trackAtual.getCapabilities
-          ? trackAtual.getCapabilities()
-          : {};
-
-      /*
-      Alguns dispositivos suportam
-      foco por ponto de interesse.
-      */
-
-      if (
-        capacidades.focusMode &&
-        capacidades.focusMode.includes("single-shot")
-      ) {
-
-        await trackAtual.applyConstraints({
-          advanced: [{ focusMode: "single-shot" }]
-        });
-
-      }
-
-      else if (
-        capacidades.focusMode &&
-        capacidades.focusMode.includes("continuous")
-      ) {
-
-        /*
-        Força reaplicar o foco contínuo,
-        o que em muitos aparelhos
-        já dispara um novo ajuste.
-        */
-
-        await trackAtual.applyConstraints({
-          advanced: [{ focusMode: "continuous" }]
-        });
-
-      }
-
-    }
-
-    catch (erro) {
-
-      console.warn(
-        "Foco manual não suportado neste dispositivo:",
-        erro
-      );
-
-    }
-
-  }
-);
-
-
-/*
-==================================================
-INICIAR CÂMERA
-==================================================
-*/
-
-async function iniciarCamera() {
-
-  /*
-  Verifica suporte
-  */
-
-  if (!verificarSuporte()) {
-    return;
+    const cam = listaCameras[indiceCameraAtual];
+    const label = (cam && cam.label) ? cam.label : ('Câmera ' + (indiceCameraAtual + 1));
+    camBadgeTexto.textContent = label.length > 28 ? label.slice(0, 28) + '…' : label;
+    camBadge.classList.add('show');
   }
 
+  // ---------- Início da câmera / leitura ----------
+  async function iniciarCamera(){
+    limparMensagem();
+    btnIniciar.disabled = true;
+    btnIniciar.textContent = 'Iniciando…';
 
-  /*
-  Limpa resultado anterior
-  */
+    try{
+      if(!codeReader){
+        codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+      }
 
-  resultado.classList.add("oculto");
-
-  ultimoCodigo = "";
-
-  numero.textContent = "";
-
-  tipo.textContent = "";
-
-  dicaFoco.textContent = "";
-
-
-  try {
-
-    mostrarMensagem(
-      "📷 Solicitando acesso à câmera..."
-    );
-
-
-    /*
-    Se já existe câmera,
-    encerra primeiro.
-    */
-
-    pararCameraInterno();
-
-
-    /*
-    Primeiro solicita permissão
-    já pedindo alta resolução,
-    o que ajuda MUITO na leitura
-    de códigos de barras pequenos.
-    */
-
-    const permissao =
-      await navigator.mediaDevices.getUserMedia({
-
-        video: {
-
-          facingMode: { ideal: "environment" },
-
-          width: { ideal: 1920 },
-
-          height: { ideal: 1080 }
-
-        },
-
-        audio: false
-
-      });
-
-
-    /*
-    Para o stream temporário.
-    */
-
-    permissao
-      .getTracks()
-      .forEach(track => track.stop());
-
-
-    /*
-    Agora lista as câmeras.
-    */
-
-    const encontrou =
       await obterCameras();
 
+      const deviceId = listaCameras[indiceCameraAtual] ? listaCameras[indiceCameraAtual].deviceId : undefined;
 
-    if (!encontrou) {
-      return;
-    }
+      video.style.display = 'block';
+      placeholder.style.display = 'none';
+      scanOverlay.style.display = 'block';
 
-
-    /*
-    Cria o leitor com hints
-    de formato (ITF, Code128, etc).
-    */
-
-    const hints =
-      criarHints();
-
-    leitor = hints
-      ? new ZXingBrowser.BrowserMultiFormatReader(hints)
-      : new ZXingBrowser.BrowserMultiFormatReader();
-
-
-    /*
-    ID da câmera escolhida.
-    */
-
-    const cameraId =
-      cameras[cameraAtual].deviceId;
-
-
-    /*
-    Informação da câmera.
-    */
-
-    cameraInfo.textContent =
-      cameras[cameraAtual].label ||
-      "Câmera selecionada";
-
-
-    mostrarMensagem(
-      "📷 Abrindo câmera..."
-    );
-
-
-    /*
-    Inicia câmera e leitor,
-    já pedindo alta resolução.
-    */
-
-    controles =
-      await leitor.decodeFromConstraints(
-
-        {
-          video: {
-            deviceId: { exact: cameraId },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          audio: false
-        },
-
-        video,
-
-        function(resultadoLeitura, erroLeitura) {
-
-          /*
-          Nada encontrado ainda.
-          */
-
-          if (!resultadoLeitura) {
-            return;
-          }
-
-
-          /*
-          Obtém código.
-          */
-
-          const codigo =
-            resultadoLeitura.getText();
-
-
-          if (!codigo) {
-            return;
-          }
-
-
-          /*
-          Evita leitura duplicada.
-          */
-
-          const agora =
-            Date.now();
-
-
-          if (
-            codigo === ultimoCodigo &&
-            agora - ultimaLeitura < 3000
-          ) {
-
-            return;
-
-          }
-
-
-          ultimoCodigo =
-            codigo;
-
-          ultimaLeitura =
-            agora;
-
-
-          /*
-          Mostra resultado.
-          */
-
-          numero.textContent =
-            codigo;
-
-
-          /*
-          Identifica tipo.
-          */
-
-          try {
-
-            tipo.textContent =
-              "Tipo: " +
-              resultadoLeitura
-                .getBarcodeFormat();
-
-          }
-
-          catch {
-
-            tipo.textContent =
-              "Código de barras detectado";
-
-          }
-
-
-          /*
-          Exibe resultado.
-          */
-
-          resultado.classList.remove(
-            "oculto"
-          );
-
-
-          /*
-          Mensagem.
-          */
-
-          mostrarMensagem(
-            "✅ Código lido com sucesso!",
-            "sucesso"
-          );
-
-
-          /*
-          Vibração.
-          */
-
-          if (
-            navigator.vibrate
-          ) {
-
-            navigator.vibrate(
-              [100, 50, 100]
-            );
-
-          }
-
-
-          /*
-          Som.
-          */
-
-          emitirSom();
-
+      await codeReader.decodeFromVideoDevice(deviceId, video, function(resultado, erro){
+        if(resultado){
+          tratarResultadoLido(resultado);
         }
-      );
-
-
-    /*
-    Guarda a track atual para
-    permitir foco manual por toque
-    e aplicar foco contínuo.
-    */
-
-    try {
-
-      if (
-        video.srcObject &&
-        video.srcObject.getVideoTracks
-      ) {
-
-        const tracks =
-          video.srcObject.getVideoTracks();
-
-        trackAtual =
-          tracks && tracks.length > 0
-            ? tracks[0]
-            : null;
-
-
-        await aplicarConfiguracoesAvancadas(
-          trackAtual
-        );
-
-      }
-
-    }
-
-    catch (erro) {
-
-      console.warn(
-        "Não foi possível acessar a track de vídeo:",
-        erro
-      );
-
-    }
-
-
-    /*
-    Interface.
-    */
-
-    iniciar.classList.add(
-      "oculto"
-    );
-
-    parar.classList.remove(
-      "oculto"
-    );
-
-    trocar.classList.remove(
-      "oculto"
-    );
-
-
-    mostrarMensagem(
-      "✅ Câmera aberta. Aponte para o código de barras."
-    );
-
-  }
-
-  catch (erro) {
-
-    console.error(
-      "ERRO AO ABRIR CÂMERA:",
-      erro
-    );
-
-
-    tratarErroCamera(
-      erro
-    );
-
-
-    pararCameraInterno();
-
-  }
-
-}
-
-
-/*
-==================================================
-TRATAR ERROS
-==================================================
-*/
-
-function tratarErroCamera(erro) {
-
-  let texto =
-    "❌ Não foi possível abrir a câmera.";
-
-
-  if (
-    erro &&
-    erro.name === "NotAllowedError"
-  ) {
-
-    texto =
-      "🔒 O acesso à câmera foi bloqueado. " +
-      "No Chrome, toque no cadeado ao lado do endereço " +
-      "e permita o uso da câmera.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.name === "PermissionDeniedError"
-  ) {
-
-    texto =
-      "🔒 Permissão da câmera negada.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.name === "NotFoundError"
-  ) {
-
-    texto =
-      "📷 Nenhuma câmera foi encontrada.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.name === "NotReadableError"
-  ) {
-
-    texto =
-      "⚠️ A câmera está sendo usada por outro aplicativo.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.name === "OverconstrainedError"
-  ) {
-
-    texto =
-      "⚠️ A câmera selecionada não está disponível.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.name === "SecurityError"
-  ) {
-
-    texto =
-      "🔒 O navegador bloqueou o acesso à câmera.";
-
-  }
-
-
-  else if (
-    erro &&
-    erro.message
-  ) {
-
-    texto =
-      "❌ Erro da câmera: " +
-      erro.message;
-
-  }
-
-
-  mostrarMensagem(
-    texto,
-    "erro"
-  );
-
-}
-
-
-/*
-==================================================
-TROCAR CÂMERA
-==================================================
-*/
-
-async function trocarCamera() {
-
-  if (
-    !cameras ||
-    cameras.length < 2
-  ) {
-
-    mostrarMensagem(
-      "⚠️ O dispositivo possui apenas uma câmera disponível."
-    );
-
-    return;
-  }
-
-
-  /*
-  Próxima câmera
-  */
-
-  cameraAtual =
-    (cameraAtual + 1) %
-    cameras.length;
-
-
-  /*
-  Reinicia.
-  */
-
-  await iniciarCamera();
-
-}
-
-
-/*
-==================================================
-PARAR CÂMERA INTERNO
-==================================================
-*/
-
-function pararCameraInterno() {
-
-  /*
-  Para ZXing.
-  */
-
-  if (controles) {
-
-    try {
-
-      if (
-        typeof controles.stop ===
-        "function"
-      ) {
-
-        controles.stop();
-
-      }
-
-    }
-
-    catch (erro) {
-
-      console.warn(
-        "Erro ao parar controles:",
-        erro
-      );
-
-    }
-
-    controles = null;
-
-  }
-
-
-  /*
-  Reseta leitor.
-  */
-
-  if (leitor) {
-
-    try {
-
-      if (
-        typeof leitor.reset ===
-        "function"
-      ) {
-
-        leitor.reset();
-
-      }
-
-    }
-
-    catch (erro) {
-
-      console.warn(
-        "Erro ao resetar leitor:",
-        erro
-      );
-
-    }
-
-    leitor = null;
-
-  }
-
-
-  /*
-  Para stream.
-  */
-
-  if (stream) {
-
-    stream
-      .getTracks()
-      .forEach(track => {
-
-        try {
-
-          track.stop();
-
-        }
-
-        catch {}
-
+        // erros de "não encontrado" ocorrem a cada frame sem leitura — são normais e ignorados
       });
 
-    stream = null;
+      streamAtivo = true;
+      atualizarBadgeCamera();
 
+      btnIniciar.style.display = 'none';
+      controlesAtivos.style.display = listaCameras.length > 1 ? 'flex' : 'flex';
+      btnTrocar.style.display = listaCameras.length > 1 ? 'flex' : 'none';
+
+      mostrarMensagem('Câmera pronta. Aponte para o código de barras.', 'info');
+
+    }catch(erro){
+      pararCameraInterno();
+      tratarErroCamera(erro);
+    }finally{
+      btnIniciar.disabled = false;
+      btnIniciar.textContent = '📷 Abrir câmera';
+    }
   }
 
+  function tratarResultadoLido(resultado){
+    const texto = resultado.getText();
+    const formato = formatarNomeFormato(resultado.getBarcodeFormat ? resultado.getBarcodeFormat() : resultado.format);
+    const agora = Date.now();
 
-  /*
-  Também verifica stream
-  diretamente do vídeo.
-  */
-
-  if (
-    video.srcObject
-  ) {
-
-    try {
-
-      video.srcObject
-        .getTracks()
-        .forEach(track => {
-          track.stop();
-        });
-
+    if(texto === ultimoCodigo && (agora - ultimoTimestamp) < INTERVALO_DUPLICADA_MS){
+      return; // evita leituras duplicadas dentro do intervalo
     }
 
-    catch {}
+    ultimoCodigo = texto;
+    ultimoTimestamp = agora;
 
-    video.srcObject = null;
-
+    emitirSom();
+    vibrar();
+    exibirResultado(texto, formato);
+    adicionarAoHistorico(texto, formato);
   }
 
-
-  trackAtual = null;
-
-}
-
-
-/*
-==================================================
-PARAR CÂMERA
-==================================================
-*/
-
-function pararCamera() {
-
-  pararCameraInterno();
-
-
-  iniciar.classList.remove(
-    "oculto"
-  );
-
-
-  parar.classList.add(
-    "oculto"
-  );
-
-
-  trocar.classList.add(
-    "oculto"
-  );
-
-
-  cameraInfo.textContent =
-    "Câmera não iniciada";
-
-  dicaFoco.textContent =
-    "";
-
-
-  mostrarMensagem(
-    "⏹ Câmera desligada."
-  );
-
-}
-
-
-parar.addEventListener(
-  "click",
-  pararCamera
-);
-
-
-/*
-==================================================
-INICIAR
-==================================================
-*/
-
-iniciar.addEventListener(
-  "click",
-  iniciarCamera
-);
-
-
-/*
-==================================================
-TROCAR
-==================================================
-*/
-
-trocar.addEventListener(
-  "click",
-  trocarCamera
-);
-
-
-/*
-==================================================
-COPIAR
-==================================================
-*/
-
-copiar.addEventListener(
-  "click",
-  async function() {
-
-    const texto =
-      numero.textContent.trim();
-
-
-    if (!texto) {
-
-      mostrarMensagem(
-        "⚠️ Não existe nenhum código para copiar.",
-        "erro"
-      );
-
-      return;
-
-    }
-
-
-    try {
-
-      await navigator.clipboard.writeText(
-        texto
-      );
-
-
-      copiar.textContent =
-        "✅ Número copiado!";
-
-
-      setTimeout(
-        function() {
-
-          copiar.textContent =
-            "📋 Copiar número";
-
-        },
-        1500
-      );
-
-    }
-
-    catch (erro) {
-
-      /*
-      Fallback.
-      */
-
-      try {
-
-        const campo =
-          document.createElement(
-            "textarea"
-          );
-
-
-        campo.value =
-          texto;
-
-
-        campo.style.position =
-          "fixed";
-
-
-        campo.style.opacity =
-          "0";
-
-
-        document.body.appendChild(
-          campo
-        );
-
-
-        campo.focus();
-
-        campo.select();
-
-
-        document.execCommand(
-          "copy"
-        );
-
-
-        campo.remove();
-
-
-        copiar.textContent =
-          "✅ Número copiado!";
-
-
-        setTimeout(
-          function() {
-
-            copiar.textContent =
-              "📋 Copiar número";
-
-          },
-          1500
-        );
-
+  function formatarNomeFormato(formato){
+    if(formato === undefined || formato === null) return 'DESCONHECIDO';
+    // ZXingBrowser expõe BarcodeFormat como enum numérico; tentamos mapear pelo nome se disponível
+    try{
+      if(typeof formato === 'string') return formato;
+      const nomes = ZXingBrowser.BarcodeFormat;
+      if(nomes){
+        for(const chave in nomes){
+          if(nomes[chave] === formato) return chave;
+        }
       }
+    }catch(e){}
+    return String(formato);
+  }
 
-      catch {
+  function exibirResultado(texto, formato){
+    valorLido.textContent = texto;
+    formatoLido.textContent = formato;
+    resultadoCard.classList.add('show');
+    resultadoCard.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
 
-        mostrarMensagem(
-          "❌ Não foi possível copiar o código.",
-          "erro"
-        );
-
-      }
-
+  function adicionarAoHistorico(texto, formato){
+    historicoLeituras.unshift({
+      texto: texto,
+      formato: formato,
+      hora: new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})
+    });
+    if(historicoLeituras.length > 20){
+      historicoLeituras = historicoLeituras.slice(0, 20);
     }
-
-  }
-);
-
-
-/*
-==================================================
-SOM
-==================================================
-*/
-
-function emitirSom() {
-
-  try {
-
-    const contexto =
-      new (
-        window.AudioContext ||
-        window.webkitAudioContext
-      )();
-
-
-    const oscilador =
-      contexto.createOscillator();
-
-
-    const ganho =
-      contexto.createGain();
-
-
-    oscilador.connect(
-      ganho
-    );
-
-
-    ganho.connect(
-      contexto.destination
-    );
-
-
-    oscilador.frequency.value =
-      1000;
-
-
-    ganho.gain.value =
-      0.15;
-
-
-    oscilador.start();
-
-
-    oscilador.stop(
-      contexto.currentTime +
-      0.15
-    );
-
+    toggleHistorico.textContent = 'Ver histórico (' + historicoLeituras.length + ')';
+    renderizarHistorico();
   }
 
-  catch (erro) {
-
-    console.warn(
-      "Não foi possível emitir som:",
-      erro
-    );
-
+  function renderizarHistorico(){
+    historicoEl.innerHTML = '';
+    historicoLeituras.forEach(function(item){
+      const div = document.createElement('div');
+      div.className = 'historico-item';
+      const valorSpan = document.createElement('div');
+      valorSpan.className = 'h-valor';
+      valorSpan.textContent = item.texto;
+      const formatoSpan = document.createElement('div');
+      formatoSpan.className = 'h-formato';
+      formatoSpan.textContent = item.formato + ' · ' + item.hora;
+      div.appendChild(valorSpan);
+      div.appendChild(formatoSpan);
+      historicoEl.appendChild(div);
+    });
   }
 
-}
+  // ---------- Trocar câmera ----------
+  async function trocarCamera(){
+    if(listaCameras.length < 2) return;
+    indiceCameraAtual = (indiceCameraAtual + 1) % listaCameras.length;
 
+    btnTrocar.disabled = true;
+    try{
+      pararCameraInterno({manterUI:true});
 
-/*
-==================================================
-LIMPEZA AO SAIR
-==================================================
-*/
+      const deviceId = listaCameras[indiceCameraAtual].deviceId;
+      await codeReader.decodeFromVideoDevice(deviceId, video, function(resultado, erro){
+        if(resultado){
+          tratarResultadoLido(resultado);
+        }
+      });
+      streamAtivo = true;
+      atualizarBadgeCamera();
+    }catch(erro){
+      tratarErroCamera(erro);
+    }finally{
+      btnTrocar.disabled = false;
+    }
+  }
 
-window.addEventListener(
-  "beforeunload",
-  function() {
+  // ---------- Parar câmera ----------
+  function pararCameraInterno(opcoes){
+    opcoes = opcoes || {};
+    try{
+      if(codeReader){
+        codeReader.reset();
+      }
+    }catch(e){}
 
+    try{
+      const stream = video.srcObject;
+      if(stream && stream.getTracks){
+        stream.getTracks().forEach(function(track){ track.stop(); });
+      }
+      video.srcObject = null;
+    }catch(e){}
+
+    streamAtivo = false;
+
+    if(!opcoes.manterUI){
+      video.style.display = 'none';
+      placeholder.style.display = 'flex';
+      scanOverlay.style.display = 'none';
+      camBadge.classList.remove('show');
+      btnIniciar.style.display = 'flex';
+      controlesAtivos.style.display = 'none';
+    }
+  }
+
+  function pararCamera(){
     pararCameraInterno();
-
+    limparMensagem();
+    mostrarMensagem('Câmera parada.', 'info');
   }
-);
 
+  // ---------- Tratamento de erros ----------
+  function tratarErroCamera(erro){
+    const nome = erro && (erro.name || erro.message) ? (erro.name || erro.message) : String(erro);
+    let texto = '';
 
+    switch(nome){
+      case 'NotAllowedError':
+      case 'PermissionDeniedError':
+        texto = '🔒 Permissão de câmera negada. Toque no ícone de cadeado/câmera na barra de endereço do navegador e libere o acesso à câmera para este site, depois tente novamente.';
+        break;
+      case 'NotFoundError':
+      case 'DevicesNotFoundError':
+      case 'SemCamera':
+        texto = '📵 Nenhuma câmera foi encontrada neste dispositivo. Verifique se há uma câmera conectada e habilitada.';
+        break;
+      case 'NotReadableError':
+      case 'TrackStartError':
+        texto = '⚠️ A câmera parece estar sendo usada por outro aplicativo ou aba. Feche outros programas que possam estar usando a câmera e tente novamente.';
+        break;
+      case 'OverconstrainedError':
+      case 'ConstraintNotSatisfiedError':
+        texto = '⚠️ A câmera selecionada não está disponível com as configurações solicitadas. Tente trocar de câmera.';
+        break;
+      case 'SecurityError':
+        texto = '🚫 O acesso à câmera foi bloqueado por uma política de segurança do navegador. Verifique se o site está em HTTPS.';
+        break;
+      default:
+        texto = '❌ Ocorreu um erro ao acessar a câmera (' + nome + '). Tente recarregar a página.';
+    }
+
+    mostrarMensagem(texto, 'erro');
+  }
+
+  // ---------- Copiar ----------
+  async function copiarNumero(){
+    const texto = valorLido.textContent;
+    if(!texto || texto === '—') return;
+
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(texto);
+      }else{
+        // fallback para navegadores sem Clipboard API
+        const temp = document.createElement('textarea');
+        temp.value = texto;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.focus();
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
+      }
+      const original = btnCopiar.textContent;
+      btnCopiar.textContent = '✅ Copiado!';
+      setTimeout(function(){ btnCopiar.textContent = original; }, 1500);
+    }catch(e){
+      mostrarMensagem('Não foi possível copiar automaticamente. Copie manualmente: ' + texto, 'aviso');
+    }
+  }
+
+  // ---------- Histórico toggle ----------
+  function alternarHistorico(){
+    historicoEl.classList.toggle('show');
+  }
+
+  // ---------- Eventos ----------
+  btnIniciar.addEventListener('click', iniciarCamera);
+  btnTrocar.addEventListener('click', trocarCamera);
+  btnParar.addEventListener('click', pararCamera);
+  btnCopiar.addEventListener('click', copiarNumero);
+  toggleHistorico.addEventListener('click', alternarHistorico);
+
+  window.addEventListener('beforeunload', function(){
+    pararCameraInterno();
+  });
+
+  document.addEventListener('visibilitychange', function(){
+    // Pausa a câmera quando a aba fica em segundo plano, por economia e privacidade
+    if(document.hidden && streamAtivo){
+      pararCameraInterno({manterUI:true});
+      mostrarMensagem('Câmera pausada (aba em segundo plano). Toque em "Abrir câmera" para retomar.', 'aviso');
+      video.style.display = 'none';
+      placeholder.style.display = 'flex';
+      scanOverlay.style.display = 'none';
+      camBadge.classList.remove('show');
+      btnIniciar.style.display = 'flex';
+      controlesAtivos.style.display = 'none';
+    }
+  });
+
+  // ---------- Inicialização ----------
+  window.addEventListener('load', function(){
+    // dá um tempo curto para o script do ZXing (via CDN) terminar de carregar
+    setTimeout(verificarSuporte, 300);
+  });
+
+})();
 </script>
-
 </body>
 </html>
