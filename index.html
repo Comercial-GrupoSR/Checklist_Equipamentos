@@ -146,6 +146,26 @@
   }
   .historico-item .h-valor{ font-weight:600; word-break:break-all; flex:1; }
   .historico-item .h-formato{ color:var(--text-secondary); font-size:11px; white-space:nowrap; text-align:right; }
+  .diag-cabecalho{
+    font-size:14px; font-weight:600; padding:14px 16px; cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+  }
+  #diagCorpo{ display:none; padding:0 16px 16px; }
+  #diagCorpo.show{ display:block; }
+  .diag-ajuda{ font-size:12px; color:var(--text-secondary); margin:0 0 10px; line-height:1.5; }
+  .btn-arquivo{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-size:14px; font-weight:600; border-radius:14px; padding:11px 12px;
+    background:var(--gray-light); color:var(--text); cursor:pointer; margin-bottom:10px;
+  }
+  #diagResultadoFoto{ font-size:13px; line-height:1.6; margin-bottom:10px; }
+  #diagResultadoFoto .ok{ color:#1c7c34; font-weight:600; }
+  #diagResultadoFoto .nao{ color:#c0261a; font-weight:600; }
+  #diagTexto{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px; line-height:1.5; white-space:pre-wrap; word-break:break-all;
+    background:var(--bg); border-radius:10px; padding:10px; margin:0 0 10px; color:var(--text-secondary);
+  }
   footer{ text-align:center; font-size:11px; color:var(--gray); padding:6px 0 0; line-height:1.5; }
   .visually-hidden{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
 </style>
@@ -204,9 +224,24 @@
     <div id="historicoLista"></div>
   </div>
 
+  <div class="card" id="cartaoDiag">
+    <div class="diag-cabecalho" id="diagToggle">🔧 Diagnóstico</div>
+    <div id="diagCorpo">
+      <p class="diag-ajuda">
+        Se não estiver lendo, tire uma foto da etiqueta com a câmera normal do
+        celular e teste aqui. Isso separa problema de imagem de problema de leitura.
+      </p>
+      <label class="btn-secondary btn-menor btn-arquivo" for="arquivoFoto">🖼 Testar com uma foto</label>
+      <input type="file" id="arquivoFoto" accept="image/*" hidden>
+      <div id="diagResultadoFoto"></div>
+      <pre id="diagTexto"></pre>
+      <button class="btn-secondary btn-menor" id="btnCopiarDiag">📋 Copiar diagnóstico</button>
+    </div>
+  </div>
+
   <footer>
     Processamento 100% local no navegador · biblioteca ZXing<br>
-    O histórico é perdido ao recarregar a página — copie a lista antes de sair.
+    <strong id="rodapeVersao"></strong>
   </footer>
 
   <span class="visually-hidden" id="liveRegion" aria-live="polite"></span>
@@ -284,6 +319,12 @@
 
   var MAX_HISTORICO = 100;
 
+  // Estampa de versão: serve para confirmar QUAL arquivo está rodando no
+  // celular. Cache de navegador é a causa mais comum de "a correção não
+  // funcionou" — se aqui não aparecer a versão esperada, o aparelho está
+  // com a versão antiga em cache.
+  var VERSAO = 'v4 · 20/08/2026';
+
   /* ====================================================================== */
 
   // ---------- Estado ----------
@@ -302,6 +343,11 @@
   var timerMensagem = null;
   var canvasGirado = null;
   var timerGirado = null;
+  var contadorNormal = 0;
+  var contadorGirado = 0;
+  var ultimoErroDiag = null;
+  var urlZxingUsada = null;
+  var timerDiag = null;
 
   // ---------- Elementos ----------
   var video = document.getElementById('video');
@@ -327,6 +373,13 @@
   var btnCopiarTodos = document.getElementById('btnCopiarTodos');
   var btnLimparHistorico = document.getElementById('btnLimparHistorico');
   var liveRegion = document.getElementById('liveRegion');
+  var diagToggle = document.getElementById('diagToggle');
+  var diagCorpo = document.getElementById('diagCorpo');
+  var diagTexto = document.getElementById('diagTexto');
+  var diagResultadoFoto = document.getElementById('diagResultadoFoto');
+  var arquivoFoto = document.getElementById('arquivoFoto');
+  var btnCopiarDiag = document.getElementById('btnCopiarDiag');
+  var rodapeVersao = document.getElementById('rodapeVersao');
 
   // ---------- Mensagens ----------
   function mostrarMensagem(texto, tipo, autoLimparMs){
@@ -369,6 +422,7 @@
       if(typeof ZXingBrowser === 'undefined'){
         return carregarZXing(indice + 1);
       }
+      urlZxingUsada = ZXING_URLS[indice].indexOf('unpkg') >= 0 ? 'unpkg' : 'jsdelivr';
     }, function(){
       return carregarZXing(indice + 1);
     });
@@ -390,6 +444,7 @@
   }
 
   function inicializar(){
+    rodapeVersao.textContent = VERSAO;
     var problemas = verificarRequisitosBasicos();
     if(problemas.length > 0){
       mostrarMensagem('⚠️ ' + problemas.join(' '), 'erro');
@@ -515,7 +570,106 @@
     return { video: restricoes, audio: false };
   }
 
+  // ---------- Diagnóstico ----------
+  function montarDiagnostico(){
+    var faixa = faixaVideoAtiva();
+    var cfg = {};
+    try{ if(faixa && faixa.getSettings) cfg = faixa.getSettings(); }catch(e){}
+    var linhas = [
+      'versao      : ' + VERSAO,
+      'zxing       : ' + (typeof ZXingBrowser !== 'undefined' ? ZXING_VERSAO + ' (' + (urlZxingUsada || '?') + ')' : 'NAO CARREGADO'),
+      'https       : ' + (window.isSecureContext ? 'sim' : 'NAO — camera bloqueada'),
+      'origem      : ' + location.protocol + '//' + location.host,
+      'navegador   : ' + navigator.userAgent,
+      'camera ativa: ' + (streamAtivo ? 'sim' : 'nao'),
+      'resolucao   : ' + (video.videoWidth ? video.videoWidth + 'x' + video.videoHeight : '—'),
+      'fps/foco    : ' + (cfg.frameRate ? Math.round(cfg.frameRate) + 'fps' : '?') + ' / ' + (cfg.focusMode || 'nao informado'),
+      'cameras     : ' + listaCameras.length,
+      'lanterna    : ' + (btnLanterna.style.display === 'none' ? 'nao suportada' : 'suportada'),
+      'varreduras  : ' + contadorNormal + ' normais, ' + contadorGirado + ' giradas',
+      'leituras    : ' + historicoLeituras.length,
+      'ultimo erro : ' + (ultimoErroDiag || 'nenhum')
+    ];
+    return linhas.join('\n');
+  }
+
+  function atualizarDiagnostico(){
+    if(diagCorpo.classList.contains('show')){
+      diagTexto.textContent = montarDiagnostico();
+    }
+  }
+
+  // Testa uma FOTO parada. Se a foto lê e a câmera ao vivo não, o problema
+  // é de captura (foco, movimento, luz). Se nem a foto lê, é a etiqueta.
+  function testarComFoto(arquivo){
+    if(!arquivo) return;
+    diagResultadoFoto.innerHTML = 'Analisando…';
+    var url = URL.createObjectURL(arquivo);
+    var img = new Image();
+    img.onload = function(){
+      var tentativas = [
+        ['imagem original', 0, 1],
+        ['girada 90°', 90, 1],
+        ['girada -90°', -90, 1],
+        ['girada 180°', 180, 1],
+        ['ampliada 2x', 0, 2],
+        ['ampliada 2x e girada 90°', 90, 2]
+      ];
+      var achou = null, testadas = 0;
+      for(var i = 0; i < tentativas.length && !achou; i++){
+        var r = decodificarImagem(img, tentativas[i][1], tentativas[i][2]);
+        testadas++;
+        if(r){ achou = { texto: r.getText(), formato: nomeDoFormato(r), como: tentativas[i][0] }; }
+      }
+      URL.revokeObjectURL(url);
+      if(achou){
+        diagResultadoFoto.innerHTML =
+          '<span class="ok">✅ LEU: ' + escapar(achou.texto) + '</span><br>' +
+          'formato: ' + escapar(achou.formato) + '<br>' +
+          'como: ' + escapar(achou.como) + '<br>' +
+          'foto: ' + img.width + '×' + img.height + '<br>' +
+          '<em>A etiqueta é legível. O problema está na captura ao vivo: ' +
+          'aproxime até a etiqueta ocupar a largura da tela, segure firme 1 segundo e evite sombra.</em>';
+        tratarResultadoLido({ getText: function(){ return achou.texto; }, getBarcodeFormat: function(){ return achou.formato; } });
+      }else{
+        diagResultadoFoto.innerHTML =
+          '<span class="nao">❌ Não decodificou em nenhuma das ' + testadas + ' tentativas</span><br>' +
+          'foto: ' + img.width + '×' + img.height + '<br>' +
+          '<em>Se a foto está nítida e mesmo assim não lê, o problema é a própria ' +
+          'etiqueta (barras finas demais ou impressão falhada), não o aplicativo.</em>';
+      }
+      atualizarDiagnostico();
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      diagResultadoFoto.innerHTML = '<span class="nao">Não foi possível abrir a imagem.</span>';
+    };
+    img.src = url;
+  }
+
+  function decodificarImagem(img, graus, escala){
+    try{
+      var l = Math.round(img.width * escala), a = Math.round(img.height * escala);
+      var cv = document.createElement('canvas');
+      var vertical = (graus === 90 || graus === -90);
+      cv.width = vertical ? a : l;
+      cv.height = vertical ? l : a;
+      var ctx = cv.getContext('2d');
+      ctx.translate(cv.width / 2, cv.height / 2);
+      ctx.rotate(graus * Math.PI / 180);
+      ctx.drawImage(img, -l / 2, -a / 2, l, a);
+      return obterLeitor().decodeFromCanvas(cv);
+    }catch(e){ return null; }
+  }
+
+  function escapar(t){
+    return String(t).replace(/[&<>"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
+  }
+
   function aoDecodificar(resultado){
+    contadorNormal++;
     if(resultado){ tratarResultadoLido(resultado); }
     // Erros de "código não encontrado" chegam a cada quadro sem leitura.
     // São normais e devem ser ignorados.
@@ -560,6 +714,7 @@
       ctx.rotate(-Math.PI / 2);
       ctx.drawImage(video, -l / 2, -a / 2);
       ctx.restore();
+      contadorGirado++;
       var resultado = obterLeitor().decodeFromCanvas(canvasGirado);
       if(resultado){ tratarResultadoLido(resultado); }
     }catch(e){
@@ -886,7 +1041,9 @@
       default:
         texto = '❌ Erro ao acessar a câmera (' + nome + '). Tente recarregar a página.';
     }
+    ultimoErroDiag = nome;
     mostrarMensagem(texto, 'erro');
+    atualizarDiagnostico();
   }
 
   // ---------- Copiar ----------
@@ -950,6 +1107,24 @@
   btnCopiarTodos.addEventListener('click', copiarTodos);
   btnLimparHistorico.addEventListener('click', limparHistorico);
   toggleHistorico.addEventListener('click', alternarHistorico);
+
+  diagToggle.addEventListener('click', function(){
+    diagCorpo.classList.toggle('show');
+    atualizarDiagnostico();
+    if(diagCorpo.classList.contains('show')){
+      if(timerDiag) clearInterval(timerDiag);
+      timerDiag = setInterval(atualizarDiagnostico, 1000);
+    }else if(timerDiag){
+      clearInterval(timerDiag); timerDiag = null;
+    }
+  });
+  arquivoFoto.addEventListener('change', function(){
+    testarComFoto(this.files && this.files[0]);
+    this.value = '';
+  });
+  btnCopiarDiag.addEventListener('click', function(){
+    copiarTexto(montarDiagnostico(), btnCopiarDiag);
+  });
 
   // Assim que o vídeo informa suas dimensões reais, ajusta a moldura e o
   // rótulo — cobre tanto a abertura inicial quanto a troca de câmera.
