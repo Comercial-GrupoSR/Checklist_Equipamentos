@@ -545,8 +545,15 @@
   }
 
   function tratarResultadoLido(resultado){
-    const texto = resultado.getText();
+    let texto = resultado.getText();
     const formato = formatarNomeFormato(resultado.getBarcodeFormat ? resultado.getBarcodeFormat() : resultado.format);
+
+    // Code 39 usa "*" como caractere de início/fim (start/stop);
+    // esse caractere não faz parte do dado e deve ser descartado.
+    if(formato === 'CODE_39'){
+      texto = texto.replace(/^\*+/, '').replace(/\*+$/, '');
+    }
+
     const agora = Date.now();
 
     if(texto === ultimoCodigo && (agora - ultimoTimestamp) < INTERVALO_DUPLICADA_MS){
