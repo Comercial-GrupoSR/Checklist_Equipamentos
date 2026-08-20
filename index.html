@@ -1,14 +1,16 @@
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+
   <meta name="viewport"
-        content="width=device-width, initial-scale=1.0,
-                 viewport-fit=cover">
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <title>Leitor de Código de Barras</title>
 
   <style>
+
     * {
       box-sizing: border-box;
     }
@@ -61,6 +63,12 @@
       height: 3px;
       background: red;
       box-shadow: 0 0 10px red;
+      pointer-events: none;
+    }
+
+    .area-botoes {
+      display: flex;
+      gap: 10px;
     }
 
     button {
@@ -73,6 +81,7 @@
       font-weight: bold;
       color: white;
       background: #007aff;
+      cursor: pointer;
     }
 
     button:active {
@@ -81,6 +90,10 @@
 
     #parar {
       background: #ff3b30;
+    }
+
+    #trocar {
+      background: #5856d6;
     }
 
     #copiar {
@@ -121,9 +134,22 @@
       color: #b00020;
     }
 
+    .sucesso {
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+
     .oculto {
       display: none;
     }
+
+    .camera-info {
+      text-align: center;
+      color: #666;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
   </style>
 </head>
 
@@ -137,34 +163,75 @@
     Aponte a câmera para o código de barras
   </p>
 
+
+  <!-- CÂMERA -->
+
   <div class="camera">
-    <video id="video"
-           autoplay
-           muted
-           playsinline
-           webkit-playsinline>
+
+    <video
+      id="video"
+      autoplay
+      muted
+      playsinline
+      webkit-playsinline>
     </video>
 
     <div class="mira"></div>
+
   </div>
+
+
+  <div id="cameraInfo" class="camera-info">
+    Câmera não iniciada
+  </div>
+
+
+  <!-- BOTÕES -->
 
   <button id="iniciar">
     📷 Abrir câmera
   </button>
 
-  <button id="parar" class="oculto">
-    ⏹ Parar câmera
-  </button>
 
-  <div id="mensagem" class="mensagem oculto"></div>
+  <div class="area-botoes">
 
-  <div id="resultado" class="resultado oculto">
+    <button id="trocar" class="oculto">
+      🔄 Trocar câmera
+    </button>
+
+    <button id="parar" class="oculto">
+      ⏹ Parar
+    </button>
+
+  </div>
+
+
+  <!-- MENSAGEM -->
+
+  <div
+    id="mensagem"
+    class="mensagem oculto">
+  </div>
+
+
+  <!-- RESULTADO -->
+
+  <div
+    id="resultado"
+    class="resultado oculto">
 
     <strong>Número encontrado:</strong>
 
-    <div id="numero" class="numero"></div>
+    <div
+      id="numero"
+      class="numero">
+    </div>
 
-    <div id="tipo" class="tipo"></div>
+    <div
+      id="tipo"
+      class="tipo">
+    </div>
+
 
     <button id="copiar">
       📋 Copiar número
@@ -175,81 +242,141 @@
 </div>
 
 
-<!-- Biblioteca ZXing -->
+<!--
+==================================================
+ZXING
+==================================================
+-->
+
 <script src="https://unpkg.com/@zxing/browser@0.2.1/umd/index.min.js"></script>
 
 
 <script>
 
-const video = document.getElementById("video");
-const iniciar = document.getElementById("iniciar");
-const parar = document.getElementById("parar");
+"use strict";
 
-const mensagem = document.getElementById("mensagem");
-const resultado = document.getElementById("resultado");
 
-const numero = document.getElementById("numero");
-const tipo = document.getElementById("tipo");
-const copiar = document.getElementById("copiar");
+/*
+==================================================
+ELEMENTOS
+==================================================
+*/
+
+const video =
+  document.getElementById("video");
+
+const iniciar =
+  document.getElementById("iniciar");
+
+const parar =
+  document.getElementById("parar");
+
+const trocar =
+  document.getElementById("trocar");
+
+const mensagem =
+  document.getElementById("mensagem");
+
+const resultado =
+  document.getElementById("resultado");
+
+const numero =
+  document.getElementById("numero");
+
+const tipo =
+  document.getElementById("tipo");
+
+const copiar =
+  document.getElementById("copiar");
+
+const cameraInfo =
+  document.getElementById("cameraInfo");
+
+
+/*
+==================================================
+VARIÁVEIS
+==================================================
+*/
 
 let stream = null;
+
 let leitor = null;
+
 let controles = null;
 
+let cameras = [];
+
+let cameraAtual = 0;
+
 let ultimoCodigo = "";
+
 let ultimaLeitura = 0;
 
 
 /*
---------------------------------------------------
-MOSTRAR MENSAGEM
---------------------------------------------------
+==================================================
+MENSAGEM
+==================================================
 */
 
-function mostrarMensagem(texto, erro = false) {
+function mostrarMensagem(texto, tipoMensagem = "normal") {
 
   mensagem.textContent = texto;
-  mensagem.classList.remove("oculto");
 
-  if (erro) {
+  mensagem.classList.remove(
+    "oculto",
+    "erro",
+    "sucesso"
+  );
+
+  if (tipoMensagem === "erro") {
+
     mensagem.classList.add("erro");
-  } else {
-    mensagem.classList.remove("erro");
+
   }
+
+  else if (tipoMensagem === "sucesso") {
+
+    mensagem.classList.add("sucesso");
+
+  }
+
 }
 
 
 /*
---------------------------------------------------
-INICIAR CÂMERA
---------------------------------------------------
+==================================================
+OCULTAR MENSAGEM
+==================================================
 */
 
-iniciar.addEventListener("click", async () => {
+function ocultarMensagem() {
 
   mensagem.classList.add("oculto");
-  resultado.classList.add("oculto");
 
-  ultimoCodigo = "";
+}
 
-  /*
-  Verifica HTTPS
-  */
+
+/*
+==================================================
+VERIFICAR SUPORTE
+==================================================
+*/
+
+function verificarSuporte() {
 
   if (!window.isSecureContext) {
 
     mostrarMensagem(
-      "Este site precisa ser aberto pelo endereço HTTPS do GitHub Pages.",
-      true
+      "⚠️ O site precisa estar aberto em HTTPS. " +
+      "Verifique se está acessando pelo GitHub Pages.",
+      "erro"
     );
 
-    return;
+    return false;
   }
 
-
-  /*
-  Verifica suporte à câmera
-  */
 
   if (
     !navigator.mediaDevices ||
@@ -257,41 +384,177 @@ iniciar.addEventListener("click", async () => {
   ) {
 
     mostrarMensagem(
-      "O navegador não disponibilizou acesso à câmera.",
-      true
+      "❌ Este navegador não permite acesso à câmera.",
+      "erro"
     );
 
+    return false;
+  }
+
+
+  if (
+    typeof ZXingBrowser === "undefined"
+  ) {
+
+    mostrarMensagem(
+      "❌ A biblioteca de leitura não foi carregada.",
+      "erro"
+    );
+
+    return false;
+  }
+
+
+  return true;
+
+}
+
+
+/*
+==================================================
+OBTER CÂMERAS
+==================================================
+*/
+
+async function obterCameras() {
+
+  try {
+
+    cameras =
+      await ZXingBrowser.BrowserCodeReader
+        .listVideoInputDevices();
+
+
+    if (!cameras || cameras.length === 0) {
+
+      mostrarMensagem(
+        "❌ Nenhuma câmera foi encontrada.",
+        "erro"
+      );
+
+      return false;
+    }
+
+
+    console.log(
+      "Câmeras encontradas:",
+      cameras
+    );
+
+
+    /*
+    Procura câmera traseira
+    */
+
+    const indiceTraseira =
+      cameras.findIndex(camera => {
+
+        const nome =
+          (camera.label || "").toLowerCase();
+
+        return (
+          nome.includes("back") ||
+          nome.includes("rear") ||
+          nome.includes("environment") ||
+          nome.includes("traseira") ||
+          nome.includes("posterior")
+        );
+
+      });
+
+
+    if (indiceTraseira >= 0) {
+
+      cameraAtual =
+        indiceTraseira;
+
+    }
+
+    else {
+
+      cameraAtual = 0;
+
+    }
+
+
+    return true;
+
+  }
+
+  catch (erro) {
+
+    console.error(
+      "Erro ao obter câmeras:",
+      erro
+    );
+
+    mostrarMensagem(
+      "❌ Não foi possível identificar as câmeras.",
+      "erro"
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/*
+==================================================
+INICIAR CÂMERA
+==================================================
+*/
+
+async function iniciarCamera() {
+
+  /*
+  Verifica suporte
+  */
+
+  if (!verificarSuporte()) {
     return;
   }
+
+
+  /*
+  Limpa resultado anterior
+  */
+
+  resultado.classList.add("oculto");
+
+  ultimoCodigo = "";
+
+  numero.textContent = "";
+
+  tipo.textContent = "";
 
 
   try {
 
     mostrarMensagem(
-      "Solicitando acesso à câmera..."
+      "📷 Solicitando acesso à câmera..."
     );
 
 
     /*
-    Abre diretamente a câmera traseira.
+    Se já existe câmera,
+    encerra primeiro.
     */
 
-    stream =
+    pararCameraInterno();
+
+
+    /*
+    Primeiro solicita permissão.
+    Isso é importante principalmente
+    em celulares.
+    */
+
+    const permissao =
       await navigator.mediaDevices.getUserMedia({
 
-        video: {
-          facingMode: {
-            ideal: "environment"
-          },
-
-          width: {
-            ideal: 1920
-          },
-
-          height: {
-            ideal: 1080
-          }
-        },
+        video: true,
 
         audio: false
 
@@ -299,70 +562,128 @@ iniciar.addEventListener("click", async () => {
 
 
     /*
-    Coloca a câmera no vídeo.
+    Para o stream temporário.
     */
 
-    video.srcObject = stream;
-
-    await video.play();
-
-
-    mostrarMensagem(
-      "✅ Câmera aberta. Aponte para o código de barras."
-    );
-
-
-    iniciar.classList.add("oculto");
-    parar.classList.remove("oculto");
+    permissao
+      .getTracks()
+      .forEach(track => track.stop());
 
 
     /*
-    Inicia o leitor
+    Agora lista as câmeras.
+    */
+
+    const encontrou =
+      await obterCameras();
+
+
+    if (!encontrou) {
+      return;
+    }
+
+
+    /*
+    Cria o leitor.
     */
 
     leitor =
       new ZXingBrowser.BrowserMultiFormatReader();
 
 
+    /*
+    ID da câmera escolhida.
+    */
+
+    const cameraId =
+      cameras[cameraAtual].deviceId;
+
+
+    /*
+    Informação da câmera.
+    */
+
+    cameraInfo.textContent =
+      cameras[cameraAtual].label ||
+      "Câmera selecionada";
+
+
+    mostrarMensagem(
+      "📷 Abrindo câmera..."
+    );
+
+
+    /*
+    Inicia câmera e leitor.
+    */
+
     controles =
-      await leitor.decodeFromStream(
-        stream,
+      await leitor.decodeFromVideoDevice(
+
+        cameraId,
+
         video,
-        (resultadoLeitura, erroLeitura) => {
+
+        function(resultadoLeitura, erroLeitura) {
+
+          /*
+          Nada encontrado ainda.
+          */
 
           if (!resultadoLeitura) {
             return;
           }
 
 
+          /*
+          Obtém código.
+          */
+
           const codigo =
             resultadoLeitura.getText();
 
 
+          if (!codigo) {
+            return;
+          }
+
+
           /*
-          Evita múltiplas leituras
+          Evita leitura duplicada.
           */
 
-          const agora = Date.now();
+          const agora =
+            Date.now();
+
 
           if (
             codigo === ultimoCodigo &&
             agora - ultimaLeitura < 3000
           ) {
+
             return;
+
           }
 
 
-          ultimoCodigo = codigo;
-          ultimaLeitura = agora;
+          ultimoCodigo =
+            codigo;
+
+          ultimaLeitura =
+            agora;
 
 
           /*
-          Mostra resultado
+          Mostra resultado.
           */
 
-          numero.textContent = codigo;
+          numero.textContent =
+            codigo;
 
+
+          /*
+          Identifica tipo.
+          */
 
           try {
 
@@ -371,7 +692,9 @@ iniciar.addEventListener("click", async () => {
               resultadoLeitura
                 .getBarcodeFormat();
 
-          } catch {
+          }
+
+          catch {
 
             tipo.textContent =
               "Código de barras detectado";
@@ -379,114 +702,393 @@ iniciar.addEventListener("click", async () => {
           }
 
 
-          resultado.classList.remove("oculto");
+          /*
+          Exibe resultado.
+          */
+
+          resultado.classList.remove(
+            "oculto"
+          );
 
 
           /*
-          Vibração
+          Mensagem.
           */
 
-          if (navigator.vibrate) {
-            navigator.vibrate(150);
+          mostrarMensagem(
+            "✅ Código lido com sucesso!",
+            "sucesso"
+          );
+
+
+          /*
+          Vibração.
+          */
+
+          if (
+            navigator.vibrate
+          ) {
+
+            navigator.vibrate(
+              [100, 50, 100]
+            );
+
           }
+
+
+          /*
+          Som.
+          */
+
+          emitirSom();
 
         }
       );
+
+
+    /*
+    Interface.
+    */
+
+    iniciar.classList.add(
+      "oculto"
+    );
+
+    parar.classList.remove(
+      "oculto"
+    );
+
+    trocar.classList.remove(
+      "oculto"
+    );
+
+
+    mostrarMensagem(
+      "✅ Câmera aberta. Aponte para o código de barras."
+    );
 
   }
 
   catch (erro) {
 
-    console.error(erro);
-
-    let texto =
-      "Não foi possível abrir a câmera.";
-
-
-    if (erro.name === "NotAllowedError") {
-
-      texto =
-        "O acesso à câmera foi bloqueado. " +
-        "Verifique as permissões do Chrome " +
-        "para este site.";
-
-    }
-
-    else if (erro.name === "NotFoundError") {
-
-      texto =
-        "Nenhuma câmera foi encontrada.";
-
-    }
-
-    else if (erro.name === "NotReadableError") {
-
-      texto =
-        "A câmera está sendo usada por outro aplicativo.";
-
-    }
-
-    else if (erro.name === "SecurityError") {
-
-      texto =
-        "O navegador bloqueou o acesso à câmera.";
-
-    }
+    console.error(
+      "ERRO AO ABRIR CÂMERA:",
+      erro
+    );
 
 
-    mostrarMensagem(texto, true);
+    tratarErroCamera(
+      erro
+    );
 
 
-    pararCamera();
+    pararCameraInterno();
 
   }
 
-});
+}
 
 
 /*
---------------------------------------------------
-PARAR CÂMERA
---------------------------------------------------
+==================================================
+TRATAR ERROS
+==================================================
 */
 
-function pararCamera() {
+function tratarErroCamera(erro) {
+
+  let texto =
+    "❌ Não foi possível abrir a câmera.";
+
+
+  if (
+    erro &&
+    erro.name === "NotAllowedError"
+  ) {
+
+    texto =
+      "🔒 O acesso à câmera foi bloqueado. " +
+      "No Chrome, toque no cadeado ao lado do endereço " +
+      "e permita o uso da câmera.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.name === "PermissionDeniedError"
+  ) {
+
+    texto =
+      "🔒 Permissão da câmera negada.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.name === "NotFoundError"
+  ) {
+
+    texto =
+      "📷 Nenhuma câmera foi encontrada.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.name === "NotReadableError"
+  ) {
+
+    texto =
+      "⚠️ A câmera está sendo usada por outro aplicativo.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.name === "OverconstrainedError"
+  ) {
+
+    texto =
+      "⚠️ A câmera selecionada não está disponível.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.name === "SecurityError"
+  ) {
+
+    texto =
+      "🔒 O navegador bloqueou o acesso à câmera.";
+
+  }
+
+
+  else if (
+    erro &&
+    erro.message
+  ) {
+
+    texto =
+      "❌ Erro da câmera: " +
+      erro.message;
+
+  }
+
+
+  mostrarMensagem(
+    texto,
+    "erro"
+  );
+
+}
+
+
+/*
+==================================================
+TROCAR CÂMERA
+==================================================
+*/
+
+async function trocarCamera() {
+
+  if (
+    !cameras ||
+    cameras.length < 2
+  ) {
+
+    mostrarMensagem(
+      "⚠️ O dispositivo possui apenas uma câmera disponível."
+    );
+
+    return;
+  }
+
+
+  /*
+  Próxima câmera
+  */
+
+  cameraAtual =
+    (cameraAtual + 1) %
+    cameras.length;
+
+
+  /*
+  Reinicia.
+  */
+
+  await iniciarCamera();
+
+}
+
+
+/*
+==================================================
+PARAR CÂMERA INTERNO
+==================================================
+*/
+
+function pararCameraInterno() {
+
+  /*
+  Para ZXing.
+  */
 
   if (controles) {
 
     try {
-      controles.stop();
-    } catch {}
+
+      if (
+        typeof controles.stop ===
+        "function"
+      ) {
+
+        controles.stop();
+
+      }
+
+    }
+
+    catch (erro) {
+
+      console.warn(
+        "Erro ao parar controles:",
+        erro
+      );
+
+    }
 
     controles = null;
+
   }
 
+
+  /*
+  Reseta leitor.
+  */
 
   if (leitor) {
 
     try {
-      leitor.reset();
-    } catch {}
+
+      if (
+        typeof leitor.reset ===
+        "function"
+      ) {
+
+        leitor.reset();
+
+      }
+
+    }
+
+    catch (erro) {
+
+      console.warn(
+        "Erro ao resetar leitor:",
+        erro
+      );
+
+    }
 
     leitor = null;
+
   }
 
+
+  /*
+  Para stream.
+  */
 
   if (stream) {
 
     stream
       .getTracks()
-      .forEach(track => track.stop());
+      .forEach(track => {
+
+        try {
+
+          track.stop();
+
+        }
+
+        catch {}
+
+      });
 
     stream = null;
+
   }
 
 
-  video.srcObject = null;
+  /*
+  Também verifica stream
+  diretamente do vídeo.
+  */
+
+  if (
+    video.srcObject
+  ) {
+
+    try {
+
+      video.srcObject
+        .getTracks()
+        .forEach(track => {
+          track.stop();
+        });
+
+    }
+
+    catch {}
+
+    video.srcObject = null;
+
+  }
+
+}
 
 
-  iniciar.classList.remove("oculto");
-  parar.classList.add("oculto");
+/*
+==================================================
+PARAR CÂMERA
+==================================================
+*/
+
+function pararCamera() {
+
+  pararCameraInterno();
+
+
+  iniciar.classList.remove(
+    "oculto"
+  );
+
+
+  parar.classList.add(
+    "oculto"
+  );
+
+
+  trocar.classList.add(
+    "oculto"
+  );
+
+
+  cameraInfo.textContent =
+    "Câmera não iniciada";
+
+
+  mostrarMensagem(
+    "⏹ Câmera desligada."
+  );
+
 }
 
 
@@ -497,73 +1099,236 @@ parar.addEventListener(
 
 
 /*
---------------------------------------------------
-COPIAR
---------------------------------------------------
+==================================================
+INICIAR
+==================================================
 */
 
-copiar.addEventListener("click", async () => {
+iniciar.addEventListener(
+  "click",
+  iniciarCamera
+);
 
-  const texto =
-    numero.textContent.trim();
 
+/*
+==================================================
+TROCAR
+==================================================
+*/
+
+trocar.addEventListener(
+  "click",
+  trocarCamera
+);
+
+
+/*
+==================================================
+COPIAR
+==================================================
+*/
+
+copiar.addEventListener(
+  "click",
+  async function() {
+
+    const texto =
+      numero.textContent.trim();
+
+
+    if (!texto) {
+
+      mostrarMensagem(
+        "⚠️ Não existe nenhum código para copiar.",
+        "erro"
+      );
+
+      return;
+
+    }
+
+
+    try {
+
+      await navigator.clipboard.writeText(
+        texto
+      );
+
+
+      copiar.textContent =
+        "✅ Número copiado!";
+
+
+      setTimeout(
+        function() {
+
+          copiar.textContent =
+            "📋 Copiar número";
+
+        },
+        1500
+      );
+
+    }
+
+    catch (erro) {
+
+      /*
+      Fallback.
+      */
+
+      try {
+
+        const campo =
+          document.createElement(
+            "textarea"
+          );
+
+
+        campo.value =
+          texto;
+
+
+        campo.style.position =
+          "fixed";
+
+
+        campo.style.opacity =
+          "0";
+
+
+        document.body.appendChild(
+          campo
+        );
+
+
+        campo.focus();
+
+        campo.select();
+
+
+        document.execCommand(
+          "copy"
+        );
+
+
+        campo.remove();
+
+
+        copiar.textContent =
+          "✅ Número copiado!";
+
+
+        setTimeout(
+          function() {
+
+            copiar.textContent =
+              "📋 Copiar número";
+
+          },
+          1500
+        );
+
+      }
+
+      catch {
+
+        mostrarMensagem(
+          "❌ Não foi possível copiar o código.",
+          "erro"
+        );
+
+      }
+
+    }
+
+  }
+);
+
+
+/*
+==================================================
+SOM
+==================================================
+*/
+
+function emitirSom() {
 
   try {
 
-    await navigator
-      .clipboard
-      .writeText(texto);
+    const contexto =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
 
 
-    copiar.textContent =
-      "✅ Número copiado!";
+    const oscilador =
+      contexto.createOscillator();
 
 
-    setTimeout(() => {
-
-      copiar.textContent =
-        "📋 Copiar número";
-
-    }, 1500);
-
-  }
-
-  catch {
-
-    /*
-    Fallback para iPhone
-    */
-
-    const campo =
-      document.createElement("textarea");
-
-    campo.value = texto;
-
-    document.body.appendChild(campo);
-
-    campo.select();
-
-    document.execCommand("copy");
-
-    campo.remove();
+    const ganho =
+      contexto.createGain();
 
 
-    copiar.textContent =
-      "✅ Número copiado!";
+    oscilador.connect(
+      ganho
+    );
 
 
-    setTimeout(() => {
+    ganho.connect(
+      contexto.destination
+    );
 
-      copiar.textContent =
-        "📋 Copiar número";
 
-    }, 1500);
+    oscilador.frequency.value =
+      1000;
+
+
+    ganho.gain.value =
+      0.15;
+
+
+    oscilador.start();
+
+
+    oscilador.stop(
+      contexto.currentTime +
+      0.15
+    );
 
   }
 
-});
+  catch (erro) {
+
+    console.warn(
+      "Não foi possível emitir som:",
+      erro
+    );
+
+  }
+
+}
+
+
+/*
+==================================================
+LIMPEZA AO SAIR
+==================================================
+*/
+
+window.addEventListener(
+  "beforeunload",
+  function() {
+
+    pararCameraInterno();
+
+  }
+);
+
 
 </script>
 
 </body>
 </html>
+```
